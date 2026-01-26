@@ -1,15 +1,13 @@
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption, type IndexHtmlTransformResult } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTaggerPlugin } from "./src/visual-edits/component-tagger-plugin.js";
+import { componentTagger } from "lovable-tagger";
 
 // Minimal plugin to log build-time and dev-time errors to console
-const logErrorsPlugin = () => ({
+const logErrorsPlugin = (): PluginOption => ({
   name: "log-errors-plugin",
-  // Inject a small client-side script that mirrors Vite overlay errors to console
   transformIndexHtml() {
-    return {
-      tags: [
+    return [
         {
           tag: "script",
           injectTo: "head",
@@ -56,8 +54,7 @@ const logErrorsPlugin = () => ({
             }
           })();`
         }
-      ]
-    };
+      ];
   },
 });
 
@@ -65,12 +62,12 @@ const logErrorsPlugin = () => ({
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 3000,
+    port: 8080,
   },
   plugins: [
     react(),
     logErrorsPlugin(),
-    mode === 'development' && componentTaggerPlugin(),
+    mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {
     alias: {

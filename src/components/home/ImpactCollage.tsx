@@ -70,6 +70,12 @@ interface CollageItem {
   color: string;
 }
 
+interface ImpactCollageContent {
+  title?: string;
+  subtitle?: string;
+  images?: CollageItem[];
+}
+
 export function ImpactCollage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -77,13 +83,14 @@ export function ImpactCollage() {
   const [isDraggingProgress, setIsDraggingProgress] = useState(false);
   const { data: cms } = useCMSContent("home", "impact-collage");
 
-  const content = cms?.content || {
-    title: "Our Circular Journey",
-    subtitle: "From textile waste collection to sustainable fashion — discover how we're transforming the industry through high-impact circular systems.",
-    images: defaultCollageItems
+  const cmsContent = (cms?.content || {}) as ImpactCollageContent;
+  const content = {
+    title: cmsContent.title || "Our Circular Journey",
+    subtitle: cmsContent.subtitle || "From textile waste collection to sustainable fashion — discover how we're transforming the industry through high-impact circular systems.",
+    images: cmsContent.images || defaultCollageItems
   };
 
-  const items: CollageItem[] = content.images || defaultCollageItems;
+  const items: CollageItem[] = content.images;
   const duplicatedItems = [...items, ...items];
 
   const updateScrollProgress = useCallback(() => {

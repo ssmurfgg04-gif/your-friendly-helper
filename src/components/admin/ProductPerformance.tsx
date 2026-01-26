@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -16,29 +15,8 @@ interface ProductStat {
 }
 
 export function ProductPerformance() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState<ProductStat[]>([]);
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("product_performance_stats")
-        .select("*")
-        .order("actual_sales", { ascending: false });
-
-      if (error) throw error;
-      setStats(data || []);
-    } catch (error) {
-      console.error("Failed to fetch product stats:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [isLoading] = useState(false);
+  const [stats] = useState<ProductStat[]>([]);
 
   if (isLoading) {
     return (
@@ -96,7 +74,7 @@ export function ProductPerformance() {
         <CardHeader>
           <CardTitle>Product Performance Breakdown</CardTitle>
           <CardDescription>
-            Comparing views, intent (close sales), and actual purchases.
+            Comparing views, intent (close sales), and actual purchases. Enable Cloud to track product performance automatically.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -134,7 +112,7 @@ export function ProductPerformance() {
               {stats.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No product data tracked yet.
+                    No product data tracked yet. Enable Cloud to start tracking product performance.
                   </TableCell>
                 </TableRow>
               )}

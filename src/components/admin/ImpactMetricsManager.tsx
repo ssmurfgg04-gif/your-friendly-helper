@@ -14,39 +14,38 @@ import { Loader2, Plus, Pencil, Trash2, TrendingUp } from "lucide-react";
 interface ImpactMetric {
   id: string;
   metric_name: string;
-  metric_value: string;
+  metric_value: number;
   unit: string;
   notes: string | null;
   recorded_at: string;
-  batch_id: string | null;
-  traceability_link: string | null;
-  facility_location: string | null;
-  category: string | null;
 }
 
-const EMPTY_METRIC: Omit<ImpactMetric, "id" | "recorded_at"> = {
+interface ImpactMetricForm {
+  metric_name: string;
+  metric_value: string;
+  unit: string;
+  notes: string | null;
+}
+
+const EMPTY_METRIC: ImpactMetricForm = {
   metric_name: "",
   metric_value: "",
   unit: "kg",
   notes: null,
-  batch_id: null,
-  traceability_link: null,
-  facility_location: null,
-  category: null,
 };
 
 export function ImpactMetricsManager() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMetric, setEditingMetric] = useState<ImpactMetric | null>(null);
-  const [formData, setFormData] = useState<Omit<ImpactMetric, "id" | "recorded_at">>(EMPTY_METRIC);
+  const [formData, setFormData] = useState<ImpactMetricForm>(EMPTY_METRIC);
 
   const { data: metrics, isLoading } = useQuery({
     queryKey: ["impact-metrics"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("impact_metrics")
-        .select("*")
+        .select("id, metric_name, metric_value, unit, notes, recorded_at")
         .order("recorded_at", { ascending: false });
       if (error) throw error;
       return data as ImpactMetric[];
@@ -54,8 +53,13 @@ export function ImpactMetricsManager() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: Omit<ImpactMetric, "id" | "recorded_at">) => {
-      const { error } = await supabase.from("impact_metrics").insert(data);
+    mutationFn: async (data: ImpactMetricForm) => {
+      const { error } = await supabase.from("impact_metrics").insert({
+        metric_name: data.metric_name,
+        metric_value: parseFloat(data.metric_value),
+        unit: data.unit,
+        notes: data.notes,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -67,8 +71,13 @@ export function ImpactMetricsManager() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Omit<ImpactMetric, "id" | "recorded_at"> }) => {
-      const { error } = await supabase.from("impact_metrics").update(data).eq("id", id);
+    mutationFn: async ({ id, data }: { id: string; data: ImpactMetricForm }) => {
+      const { error } = await supabase.from("impact_metrics").update({
+        metric_name: data.metric_name,
+        metric_value: parseFloat(data.metric_value),
+        unit: data.unit,
+        notes: data.notes,
+      }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -101,13 +110,9 @@ export function ImpactMetricsManager() {
     setEditingMetric(metric);
     setFormData({
       metric_name: metric.metric_name,
-      metric_value: metric.metric_value,
+      metric_value: String(metric.metric_value),
       unit: metric.unit,
       notes: metric.notes,
-      batch_id: metric.batch_id,
-      traceability_link: metric.traceability_link,
-      facility_location: metric.facility_location,
-      category: metric.category,
     });
     setIsDialogOpen(true);
   };
@@ -150,23 +155,13 @@ export function ImpactMetricsManager() {
               <DialogTitle>{editingMetric ? "Edit Metric" : "Add New Metric"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Metric Name *</Label>
-                  <Input
-                    value={formData.metric_name}
-                    onChange={(e) => setFormData({ ...formData, metric_name: e.target.value })}
-                    placeholder="e.g. Cotton Processing"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Input
-                    value={formData.category || ""}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="e.g. Processing"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Metric Name *</Label>
+                <Input
+                  value={formData.metric_name}
+                  onChange={(e) => setFormData({ ...formData, metric_name: e.target.value })}
+                  placeholder="e.g. tonnes_recycled, carbon_offset"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -184,32 +179,6 @@ export function ImpactMetricsManager() {
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                     placeholder="kg"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Facility Location</Label>
-                <Input
-                  value={formData.facility_location || ""}
-                  onChange={(e) => setFormData({ ...formData, facility_location: e.target.value })}
-                  placeholder="e.g. Nairobi, Kenya"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Batch ID</Label>
-                  <Input
-                    value={formData.batch_id || ""}
-                    onChange={(e) => setFormData({ ...formData, batch_id: e.target.value })}
-                    placeholder="UK-KEN-044"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Traceability Link</Label>
-                  <Input
-                    value={formData.traceability_link || ""}
-                    onChange={(e) => setFormData({ ...formData, traceability_link: e.target.value })}
-                    placeholder="https://..."
                   />
                 </div>
               </div>
@@ -242,9 +211,7 @@ export function ImpactMetricsManager() {
               <TableRow>
                 <TableHead>Metric</TableHead>
                 <TableHead>Value</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Batch</TableHead>
+                <TableHead>Notes</TableHead>
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -253,9 +220,7 @@ export function ImpactMetricsManager() {
                 <TableRow key={metric.id}>
                   <TableCell className="font-medium">{metric.metric_name}</TableCell>
                   <TableCell>{metric.metric_value} {metric.unit}</TableCell>
-                  <TableCell>{metric.category || "-"}</TableCell>
-                  <TableCell>{metric.facility_location || "-"}</TableCell>
-                  <TableCell>{metric.batch_id || "-"}</TableCell>
+                  <TableCell>{metric.notes || "-"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(metric)}>

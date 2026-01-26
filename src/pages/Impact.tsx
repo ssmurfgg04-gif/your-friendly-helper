@@ -25,10 +25,10 @@ interface ImpactMetric {
   metric_value: number;
   unit: string;
   recorded_at: string;
-  batch_id: string | null;
-  traceability_link: string | null;
-  facility_location: string | null;
-  category: string | null;
+  batch_id?: string | null;
+  traceability_link?: string | null;
+  facility_location?: string | null;
+  category?: string | null;
 }
 
 const metricConfig: Record<string, { icon: React.ElementType; label: string; color: string; description: string }> = {
@@ -91,15 +91,28 @@ const Impact = () => {
   const [activeMetric, setActiveMetric] = useState("tonnes_recycled");
   const { data: cmsHeader, isLoading: cmsLoading } = useCMSContent("impact", "header");
 
+interface ImpactContent {
+  headline?: string;
+  subheadline?: string;
+}
+
   useEffect(() => {
     async function fetchMetrics() {
       const { data, error } = await supabase
         .from("impact_metrics")
-        .select("*")
+        .select("id, metric_name, metric_value, unit, recorded_at, notes")
         .order("recorded_at", { ascending: true });
 
       if (!error && data && data.length > 0) {
-        setMetrics(data);
+        // Map database data to our interface
+        const mappedData: ImpactMetric[] = data.map(item => ({
+          ...item,
+          batch_id: null,
+          traceability_link: null,
+          facility_location: null,
+          category: null,
+        }));
+        setMetrics(mappedData);
       }
       setIsLoading(false);
     }
@@ -107,9 +120,10 @@ const Impact = () => {
     fetchMetrics();
   }, []);
 
-  const content = cmsHeader?.content || {
-    headline: "Impact <span class='text-forest italic font-serif'>Redefined</span>",
-    subheadline: "Independent verification of our circular infrastructure across the UK-Kenya textile loop."
+  const cmsContent = (cmsHeader?.content || {}) as ImpactContent;
+  const content = {
+    headline: cmsContent.headline || "Impact <span class='text-forest italic font-serif'>Redefined</span>",
+    subheadline: cmsContent.subheadline || "Independent verification of our circular infrastructure across the UK-Kenya textile loop."
   };
 
   const latestMetrics = Object.entries(

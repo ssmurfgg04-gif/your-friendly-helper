@@ -62,7 +62,18 @@ export function OrdersManager() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as Order[];
+      // Map the database data to our Order interface
+      return (data || []).map(item => ({
+        ...item,
+        items: Array.isArray(item.items) ? item.items as unknown as Order['items'] : [],
+        shipping_address: item.shipping_address as Order['shipping_address'],
+        tracking_number: null,
+        tracking_carrier: null,
+        estimated_delivery: item.estimated_delivery_date,
+        shipped_at: null,
+        delivered_at: null,
+        admin_notes: null,
+      })) as Order[];
     },
   });
 

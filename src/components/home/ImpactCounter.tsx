@@ -80,6 +80,11 @@ const metricConfig: Record<string, { icon: React.ElementType; label: string; for
   },
 };
 
+interface ImpactCounterContent {
+  title?: string;
+  subtitle?: string;
+}
+
 export function ImpactCounter() {
   const [metrics, setMetrics] = useState<ImpactMetric[]>([
     { metric_name: "tonnes_recycled", metric_value: 12.5, unit: "tonnes" },
@@ -89,9 +94,10 @@ export function ImpactCounter() {
   ]);
   const { data: cms } = useCMSContent("home", "impact-counter");
 
-  const content = cms?.content || {
-    title: "Our Impact So Far",
-    subtitle: "Real-time metrics from our UK-Kenya circular fashion operation"
+  const cmsContent = (cms?.content || {}) as ImpactCounterContent;
+  const content = {
+    title: cmsContent.title || "Our Impact So Far",
+    subtitle: cmsContent.subtitle || "Real-time metrics from our UK-Kenya circular fashion operation"
   };
 
   useEffect(() => {

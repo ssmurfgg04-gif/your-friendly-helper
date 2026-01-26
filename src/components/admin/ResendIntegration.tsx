@@ -34,8 +34,17 @@ export function ResendIntegration() {
         .select("content")
         .eq("section_key", "resend")
         .single();
-      if (error) throw error;
-      return data?.content as ResendSettings;
+      if (error && error.code !== "PGRST116") throw error;
+      const content = data?.content as Record<string, unknown> | null;
+      if (!content) return null;
+      return {
+        api_key: (content.api_key as string) || "",
+        from_email: (content.from_email as string) || undefined,
+        from_name: (content.from_name as string) || undefined,
+        connected: (content.connected as boolean) || false,
+        last_sync: (content.last_sync as string) || null,
+        synced_count: (content.synced_count as number) || 0,
+      } as ResendSettings;
     },
   });
 

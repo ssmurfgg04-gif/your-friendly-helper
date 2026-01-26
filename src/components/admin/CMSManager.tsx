@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -215,7 +216,7 @@ export function CMSManager() {
     mutationFn: async ({ id, content }: { id: string; content: Record<string, unknown> }) => {
       const { error } = await supabase
         .from("site_content")
-        .update({ content, updated_at: new Date().toISOString() })
+        .update({ content: content as unknown as Json, updated_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
     },

@@ -15,13 +15,20 @@ interface Step {
   location: string;
 }
 
+interface HowItWorksContent {
+  title?: string;
+  subtitle?: string;
+  steps?: Step[];
+}
+
 export function HowItWorks() {
   const { data: cms } = useCMSContent("home", "how-it-works");
 
-  const content = cms?.content || {
-    title: "The London-Nairobi Circular Loop",
-    subtitle: "Our unique cross-continental partnership proves that waste is merely a resource in the wrong place. Experience the journey of a garment from collection to restoration.",
-    steps: [
+  const cmsContent = (cms?.content || {}) as HowItWorksContent;
+  const content = {
+    title: cmsContent.title || "The London-Nairobi Circular Loop",
+    subtitle: cmsContent.subtitle || "Our unique cross-continental partnership proves that waste is merely a resource in the wrong place. Experience the journey of a garment from collection to restoration.",
+    steps: cmsContent.steps || [
       {
         icon: "Package",
         title: "UK Collection",
