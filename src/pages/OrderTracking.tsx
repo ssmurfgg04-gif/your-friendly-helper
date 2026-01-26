@@ -98,11 +98,11 @@ const OrderTracking = () => {
         return;
       }
 
-      const typedItems = Array.isArray(data.items) 
-        ? data.items as OrderItem[]
+      const typedItems: OrderItem[] = Array.isArray(data.items) 
+        ? (data.items as unknown as OrderItem[])
         : [];
       
-      const typedShipping = data.shipping_address as ShippingAddress | null;
+      const typedShipping = data.shipping_address as unknown as ShippingAddress | null;
 
       setOrder({
         ...data,

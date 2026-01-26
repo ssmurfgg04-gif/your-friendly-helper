@@ -28,16 +28,23 @@ const defaultSdgGoals: SDGGoal[] = [
   },
 ];
 
+interface SDGBadgesContent {
+  title?: string;
+  subtitle?: string;
+  badges?: SDGGoal[];
+}
+
 export function SDGBadges() {
   const { data: cms } = useCMSContent("home", "sdg-badges");
 
-  const content = cms?.content || {
-    title: "UN Sustainable Development Goals",
-    subtitle: "Our operations directly contribute to three key UN SDGs, creating measurable impact across economic, environmental, and social dimensions.",
-    badges: defaultSdgGoals
+  const cmsContent = (cms?.content || {}) as SDGBadgesContent;
+  const content = {
+    title: cmsContent.title || "UN Sustainable Development Goals",
+    subtitle: cmsContent.subtitle || "Our operations directly contribute to three key UN SDGs, creating measurable impact across economic, environmental, and social dimensions.",
+    badges: cmsContent.badges || defaultSdgGoals
   };
 
-  const goals: SDGGoal[] = content.badges || defaultSdgGoals;
+  const goals: SDGGoal[] = content.badges;
 
   return (
     <section className="bg-card py-16 md:py-24">

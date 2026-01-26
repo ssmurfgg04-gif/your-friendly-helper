@@ -45,16 +45,31 @@ export function Footer() {
     }
   };
 
-    const siteSettings = settingsCms?.content || {
-      siteName: "Moenviron Loop",
-      logoUrl: "https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/render/image/public/project-uploads/2274ce5a-a92d-4b73-b73e-99562f585de3/moenviron-logo-resized-1768037588209.webp?width=8000&height=8000&resize=contain",
-      contactEmail: "moses@moenviron.com",
-      contactPhone: "+44 7394 382060",
-      address: "Wiltshire, SP11 9GP, United Kingdom",
-      footerText: "Pioneering the circular economy through sustainable fashion. Ethical UK collection, advanced Kenya processing, and measurable global impact."
-    };
+interface SiteSettings {
+  siteName?: string;
+  logoUrl?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  address?: string;
+  footerText?: string;
+}
 
-  const navLinks: NavLink[] = navCms?.content?.links || [
+interface NavContent {
+  links?: NavLink[];
+}
+
+  const settingsContent = (settingsCms?.content || {}) as SiteSettings;
+  const siteSettings = {
+    siteName: settingsContent.siteName || "Moenviron Loop",
+    logoUrl: settingsContent.logoUrl || "https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/render/image/public/project-uploads/2274ce5a-a92d-4b73-b73e-99562f585de3/moenviron-logo-resized-1768037588209.webp?width=8000&height=8000&resize=contain",
+    contactEmail: settingsContent.contactEmail || "moses@moenviron.com",
+    contactPhone: settingsContent.contactPhone || "+44 7394 382060",
+    address: settingsContent.address || "Wiltshire, SP11 9GP, United Kingdom",
+    footerText: settingsContent.footerText || "Pioneering the circular economy through sustainable fashion. Ethical UK collection, advanced Kenya processing, and measurable global impact."
+  };
+
+  const navContent = (navCms?.content || {}) as NavContent;
+  const navLinks: NavLink[] = navContent.links || [
     { href: "/shop", label: "Shop" },
     { href: "/about", label: "About Us" },
     { href: "/impact", label: "Our Impact" },

@@ -15,16 +15,26 @@ interface Benefit {
   description: string;
 }
 
+interface PartnerCTAContent {
+  badge?: string;
+  title?: string;
+  description?: string;
+  cta_text?: string;
+  cta_link?: string;
+  benefits?: Benefit[];
+}
+
 export function PartnerCTA() {
   const { data: cms } = useCMSContent("home", "partner-cta");
 
-  const content = cms?.content || {
-    badge: "For Brands & Retailers",
-    title: "Partner With Moenviron",
-    description: "Are you a fashion brand looking to meet EPR requirements, improve ESG scores, or launch a textile take-back program? Our UK-Kenya infrastructure provides verified, traceable circular fashion solutions at scale.",
-    cta_text: "Explore Partnership",
-    cta_link: "/partners",
-    benefits: [
+  const cmsContent = (cms?.content || {}) as PartnerCTAContent;
+  const content = {
+    badge: cmsContent.badge || "For Brands & Retailers",
+    title: cmsContent.title || "Partner With Moenviron",
+    description: cmsContent.description || "Are you a fashion brand looking to meet EPR requirements, improve ESG scores, or launch a textile take-back program? Our UK-Kenya infrastructure provides verified, traceable circular fashion solutions at scale.",
+    cta_text: cmsContent.cta_text || "Explore Partnership",
+    cta_link: cmsContent.cta_link || "/partners",
+    benefits: cmsContent.benefits || [
       {
         icon: "FileCheck",
         title: "EPR Compliance",

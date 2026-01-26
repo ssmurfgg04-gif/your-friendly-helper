@@ -13,7 +13,7 @@ import {
 import { SEO } from "@/components/SEO";
 
 const About = () => {
-  const [selectedPaper, setSelectedPaper] = useState<{ title: string; description: string; date: string; content: string } | null>(null);
+  const [selectedPaper, setSelectedPaper] = useState<{ title: string; description: string; date: string; content: string; category: string } | null>(null);
 
   const whitepapers = [
     {

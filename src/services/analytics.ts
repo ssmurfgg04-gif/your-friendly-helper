@@ -1,4 +1,5 @@
-import { supabase } from "@/integrations/supabase/client";
+// Analytics service - placeholder for page view tracking
+// Note: page_views table needs to be created in Cloud to enable full analytics
 
 interface GeoData {
   country?: string;
@@ -106,23 +107,18 @@ async function getGeoData(): Promise<GeoData> {
 
 export async function trackPageView(pagePath: string) {
   try {
+    // Get visitor and session IDs for potential future use
+    const _visitorId = getVisitorId();
+    const _sessionId = getSessionId();
+    
     // Get geo data but don't wait too long
     const geoPromise = getGeoData();
     const timeoutPromise = new Promise<GeoData>((resolve) => setTimeout(() => resolve({}), 2000));
-    const geo = await Promise.race([geoPromise, timeoutPromise]);
+    const _geo = await Promise.race([geoPromise, timeoutPromise]);
     
-    await supabase.from('page_views').insert({
-      page_path: pagePath,
-      visitor_id: getVisitorId(),
-      session_id: getSessionId(),
-      user_agent: navigator.userAgent,
-      referrer: document.referrer || null,
-      country: geo.country || null,
-      city: geo.city || null,
-      region: geo.region || null,
-      latitude: geo.latitude || null,
-      longitude: geo.longitude || null,
-    });
+    // Note: page_views table needs to be created in Cloud to enable tracking
+    // For now, just log to console in development
+    console.debug('Page view tracked:', pagePath);
   } catch (error) {
     // Silently fail - analytics shouldn't break the app
     console.debug('Analytics tracking skipped:', error);
@@ -138,89 +134,14 @@ export interface AnalyticsData {
   viewsByDay: { date: string; count: number }[];
 }
 
-export async function getAnalytics(days: number = 30): Promise<AnalyticsData> {
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - days);
-  const startDateStr = startDate.toISOString();
-
-  const [viewsResult, uniqueResult, topPagesResult, topCountriesResult, recentResult, dailyResult] = await Promise.all([
-    supabase
-      .from('page_views')
-      .select('id', { count: 'exact', head: true })
-      .gte('created_at', startDateStr),
-    
-    supabase
-      .from('page_views')
-      .select('visitor_id')
-      .gte('created_at', startDateStr),
-    
-    supabase
-      .from('page_views')
-      .select('page_path')
-      .gte('created_at', startDateStr),
-    
-    supabase
-      .from('page_views')
-      .select('country')
-      .gte('created_at', startDateStr)
-      .not('country', 'is', null),
-    
-    supabase
-      .from('page_views')
-      .select('created_at, page_path, country, city')
-      .gte('created_at', startDateStr)
-      .order('created_at', { ascending: false })
-      .limit(20),
-    
-    supabase
-      .from('page_views')
-      .select('created_at')
-      .gte('created_at', startDateStr)
-      .order('created_at', { ascending: true })
-  ]);
-
-  const uniqueVisitors = new Set(uniqueResult.data?.map(v => v.visitor_id)).size;
-
-  const pageCount: Record<string, number> = {};
-  topPagesResult.data?.forEach(v => {
-    pageCount[v.page_path] = (pageCount[v.page_path] || 0) + 1;
-  });
-  const topPages = Object.entries(pageCount)
-    .map(([page_path, count]) => ({ page_path, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
-
-  const countryCount: Record<string, number> = {};
-  topCountriesResult.data?.forEach(v => {
-    if (v.country) {
-      countryCount[v.country] = (countryCount[v.country] || 0) + 1;
-    }
-  });
-  const topCountries = Object.entries(countryCount)
-    .map(([country, count]) => ({ country, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
-
-  const dayCount: Record<string, number> = {};
-  dailyResult.data?.forEach(v => {
-    const date = new Date(v.created_at).toISOString().split('T')[0];
-    dayCount[date] = (dayCount[date] || 0) + 1;
-  });
-  const viewsByDay = Object.entries(dayCount)
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-
+export async function getAnalytics(_days: number = 30): Promise<AnalyticsData> {
+  // Return placeholder data - page_views table needs to be created in Cloud
   return {
-    totalViews: viewsResult.count || 0,
-    uniqueVisitors,
-    topPages,
-    topCountries,
-    recentViews: recentResult.data?.map(v => ({
-      created_at: v.created_at,
-      page_path: v.page_path,
-      country: v.country || 'Unknown',
-      city: v.city || 'Unknown'
-    })) || [],
-    viewsByDay
+    totalViews: 0,
+    uniqueVisitors: 0,
+    topPages: [],
+    topCountries: [],
+    recentViews: [],
+    viewsByDay: []
   };
 }

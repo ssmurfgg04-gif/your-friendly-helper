@@ -19,23 +19,39 @@ const DEFAULT_SLIDES = [
   }
 ];
 
+interface HeroContent {
+  badge?: string;
+  headline?: string;
+  title?: string;
+  subheadline?: string;
+  subtitle?: string;
+  cta_primary_text?: string;
+  ctaText?: string;
+  cta_primary_link?: string;
+  ctaLink?: string;
+  cta_secondary_text?: string;
+  cta_secondary_link?: string;
+  slides?: Array<{ url: string; alt: string }>;
+}
+
 export function HeroSection() {
   const { data: cms } = useCMSContent("home", "hero");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  const slides = cms?.content?.slides?.length > 0 
-    ? cms.content.slides 
+  const cmsContent = (cms?.content || {}) as HeroContent;
+  const slides = Array.isArray(cmsContent.slides) && cmsContent.slides.length > 0 
+    ? cmsContent.slides 
     : DEFAULT_SLIDES;
 
   const content = {
-    badge: cms?.content?.badge || "Circular Fashion • UK & Kenya and Africa Partnership",
-    headline: cms?.content?.headline || cms?.content?.title || 'Transforming Textile Waste into <i>Sustainable Fashion</i>',
-    subheadline: cms?.content?.subheadline || cms?.content?.subtitle || "The London-Nairobi Circular Bridge. We collect discarded textiles in the UK, process them with artisanal Kenya and African craftsmanship, and bring them back as premium circular fashion.",
-    cta_primary_text: cms?.content?.cta_primary_text || cms?.content?.ctaText || "Join the Movement",
-    cta_primary_link: cms?.content?.cta_primary_link || cms?.content?.ctaLink || "/shop",
-    cta_secondary_text: cms?.content?.cta_secondary_text || "Partner With Us",
-    cta_secondary_link: cms?.content?.cta_secondary_link || "/partners",
+    badge: cmsContent.badge || "Circular Fashion • UK & Kenya and Africa Partnership",
+    headline: cmsContent.headline || cmsContent.title || 'Transforming Textile Waste into <i>Sustainable Fashion</i>',
+    subheadline: cmsContent.subheadline || cmsContent.subtitle || "The London-Nairobi Circular Bridge. We collect discarded textiles in the UK, process them with artisanal Kenya and African craftsmanship, and bring them back as premium circular fashion.",
+    cta_primary_text: cmsContent.cta_primary_text || cmsContent.ctaText || "Join the Movement",
+    cta_primary_link: cmsContent.cta_primary_link || cmsContent.ctaLink || "/shop",
+    cta_secondary_text: cmsContent.cta_secondary_text || "Partner With Us",
+    cta_secondary_link: cmsContent.cta_secondary_link || "/partners",
   };
 
   const goToSlide = useCallback((index: number) => {

@@ -33,7 +33,16 @@ export function MailerLiteIntegration() {
         .eq("section_key", "mailerlite")
         .single();
       if (error && error.code !== "PGRST116") throw error;
-      return (data?.content as MailerLiteSettings) || null;
+      const content = data?.content as Record<string, unknown> | null;
+      if (!content) return null;
+      return {
+        api_key: (content.api_key as string) || "",
+        connected: (content.connected as boolean) || false,
+        last_sync: (content.last_sync as string) || null,
+        synced_count: (content.synced_count as number) || 0,
+        group_id: (content.group_id as string) || null,
+        group_name: (content.group_name as string) || null,
+      } as MailerLiteSettings;
     },
   });
 
