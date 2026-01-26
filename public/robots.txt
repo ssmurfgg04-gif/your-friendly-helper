@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://moenviron.com/sitemap.xml
+
+# Disallow admin and auth pages
+Disallow: /admin
+Disallow: /auth
+Disallow: /checkout
+Disallow: /profile

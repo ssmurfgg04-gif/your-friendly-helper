@@ -1,0 +1,384 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { toast } from "sonner";
+import { Loader2, Link2, CheckCircle2, XCircle, RefreshCw, ExternalLink, Eye, EyeOff, Mail } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+interface MailerLiteSettings {
+  api_key: string;
+  connected: boolean;
+  last_sync: string | null;
+  synced_count: number;
+  group_id: string | null;
+  group_name: string | null;
+}
+
+export function MailerLiteIntegration() {
+  const queryClient = useQueryClient();
+  const [apiKey, setApiKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ["mailerlite-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("site_content")
+        .select("content")
+        .eq("section_key", "mailerlite")
+        .single();
+      if (error && error.code !== "PGRST116") throw error;
+      return (data?.content as MailerLiteSettings) || null;
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async (newApiKey: string) => {
+      const newSettings = {
+        api_key: newApiKey,
+        connected: !!newApiKey,
+        last_sync: settings?.last_sync || null,
+        synced_count: settings?.synced_count || 0,
+        group_id: settings?.group_id || null,
+        group_name: settings?.group_name || null,
+      };
+      
+      const { data: existing } = await supabase
+        .from("site_content")
+        .select("id")
+        .eq("section_key", "mailerlite")
+        .single();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("site_content")
+          .update({
+            content: newSettings,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("section_key", "mailerlite");
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("site_content")
+          .insert({
+            page_name: "integrations",
+            section_key: "mailerlite",
+            content: newSettings,
+          });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mailerlite-settings"] });
+      setApiKey("");
+      toast.success("MailerLite API key saved");
+    },
+    onError: () => {
+      toast.error("Failed to save API key");
+    },
+  });
+
+  const testConnection = async () => {
+    if (!settings?.api_key) {
+      toast.error("Please save an API key first");
+      return;
+    }
+    
+    setIsTesting(true);
+    try {
+const response = await fetch("/.netlify/functions/sync-to-mailerlite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "test" }),
+        });
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Connection failed");
+      
+      if (data?.success) {
+        if (data.group_id && data.group_name) {
+          await supabase
+            .from("site_content")
+            .update({
+              content: {
+                ...settings,
+                group_id: data.group_id,
+                group_name: data.group_name,
+              },
+              updated_at: new Date().toISOString(),
+            })
+            .eq("section_key", "mailerlite");
+          queryClient.invalidateQueries({ queryKey: ["mailerlite-settings"] });
+        }
+        toast.success(`Connected! Using group: ${data.group_name || "Default"}`);
+      } else {
+        toast.error(data?.error || "Connection failed");
+      }
+    } catch {
+      toast.error("Failed to test connection");
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const syncSubscribers = async () => {
+    if (!settings?.api_key) {
+      toast.error("Please connect MailerLite first");
+      return;
+    }
+    
+    setIsSyncing(true);
+    try {
+const response = await fetch("/.netlify/functions/sync-to-mailerlite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "sync" }),
+        });
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Sync failed");
+      
+      if (data?.success) {
+        const { error: updateError } = await supabase
+          .from("site_content")
+          .update({
+            content: {
+              ...settings,
+              last_sync: new Date().toISOString(),
+              synced_count: data.synced_count || 0,
+              group_id: data.group_id || settings.group_id,
+              group_name: data.group_name || settings.group_name,
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("section_key", "mailerlite");
+        
+        if (!updateError) {
+          queryClient.invalidateQueries({ queryKey: ["mailerlite-settings"] });
+        }
+        
+        toast.success(`Synced ${data.synced_count} subscribers to MailerLite`);
+      } else {
+        toast.error(data?.error || "Sync failed");
+      }
+    } catch {
+      toast.error("Failed to sync subscribers");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const disconnectMailerLite = async () => {
+    const { error } = await supabase
+      .from("site_content")
+      .update({
+        content: {
+          api_key: "",
+          connected: false,
+          last_sync: null,
+          synced_count: 0,
+          group_id: null,
+          group_name: null,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("section_key", "mailerlite");
+    
+    if (error) {
+      toast.error("Failed to disconnect");
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["mailerlite-settings"] });
+      toast.success("MailerLite disconnected");
+    }
+  };
+
+  const openMailerLiteDashboard = () => {
+    window.parent.postMessage({ 
+      type: "OPEN_EXTERNAL_URL", 
+      data: { url: "https://dashboard.mailerlite.com/campaigns" } 
+    }, "*");
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-center h-32">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const isConnected = settings?.connected && settings?.api_key;
+  const maskedKey = settings?.api_key 
+    ? `${settings.api_key.slice(0, 8)}${"•".repeat(24)}` 
+    : "";
+
+  return (
+    <Card className="border-dashed">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${isConnected ? "bg-emerald-500/10" : "bg-muted"}`}>
+              <Mail className={`h-5 w-5 ${isConnected ? "text-emerald-500" : "text-muted-foreground"}`} />
+            </div>
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                MailerLite Integration
+                {isConnected ? (
+                  <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Connected
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Not Connected
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Connect MailerLite to sync subscribers and send email campaigns
+              </CardDescription>
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!isConnected ? (
+          <div className="space-y-4">
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
+              <p className="font-medium">How to get your MailerLite API Key:</p>
+              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                <li>Go to <span className="font-medium text-foreground">dashboard.mailerlite.com</span></li>
+                <li>Click <span className="font-medium text-foreground">Integrations → MailerLite API</span></li>
+                <li>Click <span className="font-medium text-foreground">Generate new token</span></li>
+                <li>Copy and paste it below</li>
+              </ol>
+            </div>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type={showKey ? "text" : "password"}
+                  placeholder="eyJ0eXAiOiJKV1QiLCJhbGc..."
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3"
+                  onClick={() => setShowKey(!showKey)}
+                >
+                  {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <Button 
+                onClick={() => saveMutation.mutate(apiKey)}
+                disabled={!apiKey || saveMutation.isPending}
+              >
+                {saveMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Link2 className="h-4 w-4 mr-2" />
+                )}
+                Connect
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">API Key</p>
+                <p className="text-xs text-muted-foreground font-mono">{maskedKey}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={disconnectMailerLite}>
+                Disconnect
+              </Button>
+            </div>
+
+            {settings?.group_name && (
+              <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
+                <p className="text-sm text-muted-foreground">Syncing to Group</p>
+                <p className="font-medium text-emerald-600">{settings.group_name}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 bg-muted/30 rounded-lg">
+                <p className="text-sm text-muted-foreground">Last Synced</p>
+                <p className="font-medium">
+                  {settings?.last_sync 
+                    ? new Date(settings.last_sync).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Never"
+                  }
+                </p>
+              </div>
+              <div className="p-3 bg-muted/30 rounded-lg">
+                <p className="text-sm text-muted-foreground">Synced Contacts</p>
+                <p className="font-medium">{settings?.synced_count || 0}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={testConnection}
+                disabled={isTesting}
+              >
+                {isTesting ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                )}
+                Test Connection
+              </Button>
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={syncSubscribers}
+                disabled={isSyncing}
+              >
+                {isSyncing ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Sync Now
+              </Button>
+            </div>
+
+            <Button 
+              className="w-full" 
+              onClick={openMailerLiteDashboard}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open MailerLite Dashboard
+            </Button>
+
+            <p className="text-xs text-muted-foreground text-center">
+              Subscribers will sync to a "Moenviron Newsletter" group in MailerLite.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
