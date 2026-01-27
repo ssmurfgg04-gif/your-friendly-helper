@@ -3,10 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MessageSquare, Send, Loader2, User } from "lucide-react";
+import { MessageSquare, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -53,11 +53,6 @@ export function AdminChat() {
         async (payload) => {
           const newMessage = payload.new as Message;
           
-          // Filter messages based on DM logic
-          // Show if: 
-          // 1. Group chat (recipient_id is null)
-          // 2. Sent by current user to someone
-          // 3. Sent to current user by someone
           const isRelevant = !newMessage.recipient_id || 
                             newMessage.sender_id === user?.id || 
                             newMessage.recipient_id === user?.id;
@@ -65,7 +60,7 @@ export function AdminChat() {
           if (!isRelevant) return;
 
           // Fetch sender info for the new message
-          const { data: profile } = await supabase
+          const { data: profile } = await (supabase as any)
             .from("profiles")
             .select("email, full_name")
             .eq("user_id", newMessage.sender_id)
@@ -86,7 +81,7 @@ export function AdminChat() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedRecipient]); // Re-fetch when changing chat partner
+  }, [selectedRecipient, user?.id]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -96,24 +91,24 @@ export function AdminChat() {
 
   const fetchAdminUsers = async () => {
     try {
-      const { data: roles, error } = await supabase
+      const { data: roles, error } = await (supabase as any)
         .from("user_roles")
         .select("user_id, role");
 
       if (error) throw error;
 
-      const userIds = (roles || []).map(r => r.user_id).filter(id => id !== user?.id);
-      const { data: profiles } = await supabase
+      const userIds = (roles || []).map((r: any) => r.user_id).filter((id: string) => id !== user?.id);
+      const { data: profiles } = await (supabase as any)
         .from("profiles")
         .select("user_id, email, full_name")
         .in("user_id", userIds);
 
-      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+      const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
 
       const formattedUsers = (roles || [])
-        .filter(r => r.user_id !== user?.id)
-        .map((r) => {
-          const profile = profileMap.get(r.user_id);
+        .filter((r: any) => r.user_id !== user?.id)
+        .map((r: any) => {
+          const profile = profileMap.get(r.user_id) as any;
           return {
             user_id: r.user_id,
             role: r.role,
@@ -131,7 +126,7 @@ export function AdminChat() {
   const fetchMessages = async () => {
     try {
       setIsLoading(true);
-      let query = supabase
+      let query = (supabase as any)
         .from("admin_messages")
         .select("*");
 
@@ -147,16 +142,16 @@ export function AdminChat() {
 
       if (error) throw error;
 
-      const senderIds = [...new Set((msgs || []).map(m => m.sender_id))];
-      const { data: profiles } = await supabase
+      const senderIds = [...new Set((msgs || []).map((m: any) => m.sender_id))];
+      const { data: profiles } = await (supabase as any)
         .from("profiles")
         .select("user_id, email, full_name")
         .in("user_id", senderIds);
 
-      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+      const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
 
-      const formattedMessages = (msgs || []).map((m) => {
-        const profile = profileMap.get(m.sender_id);
+      const formattedMessages = (msgs || []).map((m: any) => {
+        const profile = profileMap.get(m.sender_id) as any;
         return {
           ...m,
           sender_email: profile?.email,
@@ -179,7 +174,7 @@ export function AdminChat() {
 
     setIsSending(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("admin_messages")
         .insert({
           sender_id: user.id,
