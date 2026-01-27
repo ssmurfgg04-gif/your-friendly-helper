@@ -1,5 +1,4 @@
-// Analytics service - placeholder for page view tracking
-// Note: page_views table needs to be created in Cloud to enable full analytics
+import { supabase } from "@/integrations/supabase/client";
 
 interface GeoData {
   country?: string;
@@ -68,7 +67,6 @@ async function getGeoData(): Promise<GeoData> {
     // Ignore cache errors
   }
 
-  // Try to get geo data but don't block if it fails
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
@@ -107,20 +105,21 @@ async function getGeoData(): Promise<GeoData> {
 
 export async function trackPageView(pagePath: string) {
   try {
-    // Get visitor and session IDs for potential future use
-    const _visitorId = getVisitorId();
-    const _sessionId = getSessionId();
-    
-    // Get geo data but don't wait too long
-    const geoPromise = getGeoData();
-    const timeoutPromise = new Promise<GeoData>((resolve) => setTimeout(() => resolve({}), 2000));
-    const _geo = await Promise.race([geoPromise, timeoutPromise]);
-    
-    // Note: page_views table needs to be created in Cloud to enable tracking
-    // For now, just log to console in development
-    console.debug('Page view tracked:', pagePath);
+    const sid = getSessionId();
+    const userAgent = navigator.userAgent;
+    const referrer = document.referrer || null;
+
+    const { error } = await supabase.from('page_views').insert({
+      page_path: pagePath,
+      session_id: sid,
+      user_agent: userAgent,
+      referrer: referrer
+    });
+
+    if (error) {
+      console.error('Error tracking page view:', error);
+    }
   } catch (error) {
-    // Silently fail - analytics shouldn't break the app
     console.debug('Analytics tracking skipped:', error);
   }
 }
@@ -134,8 +133,78 @@ export interface AnalyticsData {
   viewsByDay: { date: string; count: number }[];
 }
 
-export async function getAnalytics(_days: number = 30): Promise<AnalyticsData> {
-  // Return placeholder data - page_views table needs to be created in Cloud
+export async function getAnalytics(days: number = 30): Promise<AnalyticsData> {
+  try {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const startDateStr = startDate.toISOString();
+
+    // Get all page views within the date range
+    const { data: pageViews, error } = await supabase
+      .from('page_views')
+      .select('*')
+      .gte('created_at', startDateStr)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching analytics:', error);
+      return getEmptyAnalytics();
+    }
+
+    if (!pageViews || pageViews.length === 0) {
+      return getEmptyAnalytics();
+    }
+
+    // Calculate total views
+    const totalViews = pageViews.length;
+
+    // Calculate unique visitors by session_id
+    const uniqueSessions = new Set(pageViews.map(v => v.session_id).filter(Boolean));
+    const uniqueVisitors = uniqueSessions.size;
+
+    // Calculate top pages
+    const pageCounts: Record<string, number> = {};
+    pageViews.forEach(v => {
+      pageCounts[v.page_path] = (pageCounts[v.page_path] || 0) + 1;
+    });
+    const topPages = Object.entries(pageCounts)
+      .map(([page_path, count]) => ({ page_path, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // Calculate views by day
+    const dayCounts: Record<string, number> = {};
+    pageViews.forEach(v => {
+      const date = v.created_at.split('T')[0];
+      dayCounts[date] = (dayCounts[date] || 0) + 1;
+    });
+    const viewsByDay = Object.entries(dayCounts)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Recent views (last 20)
+    const recentViews = pageViews.slice(0, 20).map(v => ({
+      created_at: v.created_at,
+      page_path: v.page_path,
+      country: '',
+      city: ''
+    }));
+
+    return {
+      totalViews,
+      uniqueVisitors,
+      topPages,
+      topCountries: [],
+      recentViews,
+      viewsByDay
+    };
+  } catch (error) {
+    console.error('Error in getAnalytics:', error);
+    return getEmptyAnalytics();
+  }
+}
+
+function getEmptyAnalytics(): AnalyticsData {
   return {
     totalViews: 0,
     uniqueVisitors: 0,
