@@ -17,9 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Database } from "@/integrations/supabase/types";
 
-type AppRole = Database["public"]["Enums"]["app_role"];
+type AppRole = "admin" | "moderator" | "user";
 
 interface AdminUser {
   id: string;
@@ -40,14 +39,14 @@ export function AdminUserManager() {
   const { data: admins, isLoading } = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
-      const { data: roles, error } = await supabase
+      const { data: roles, error } = await (supabase as any)
         .from("user_roles")
         .select("user_id, role, responsibilities, created_at")
         .neq("role", "user");
 
       if (error) throw error;
 
-      const adminUsers: AdminUser[] = roles.map(role => ({
+      const adminUsers: AdminUser[] = (roles || []).map((role: any) => ({
         id: role.user_id,
         email: role.user_id,
         role: role.role as AppRole,
@@ -63,7 +62,7 @@ export function AdminUserManager() {
 
   const addAdminMutation = useMutation({
     mutationFn: async ({ email: userEmail, role, responsibilities: resp }: { email: string; role: AppRole; responsibilities: string }) => {
-      const { data: existingUser } = await supabase
+      const { data: existingUser } = await (supabase as any)
         .from("user_roles")
         .select("user_id")
         .eq("user_id", userEmail)
@@ -74,7 +73,7 @@ export function AdminUserManager() {
         throw new Error("User already has this role");
       }
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("user_roles")
         .insert({
           user_id: userEmail,
@@ -98,7 +97,7 @@ export function AdminUserManager() {
 
   const removeAdminMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: AppRole }) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("user_roles")
         .delete()
         .eq("user_id", userId)
@@ -124,11 +123,8 @@ export function AdminUserManager() {
 
   const getRoleBadgeVariant = (role: AppRole) => {
     switch (role) {
-      case "super_admin": return "destructive";
       case "admin": return "default";
-      case "editor": return "secondary";
       case "moderator": return "outline";
-      case "support": return "outline";
       default: return "secondary";
     }
   };
@@ -170,11 +166,8 @@ export function AdminUserManager() {
                     <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="super_admin">Super Admin</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="editor">Editor</SelectItem>
                     <SelectItem value="moderator">Moderator</SelectItem>
-                    <SelectItem value="support">Support</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
