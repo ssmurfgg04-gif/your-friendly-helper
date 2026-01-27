@@ -14,7 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      page_views: {
+        Row: {
+          created_at: string
+          id: string
+          page_path: string
+          referrer: string | null
+          session_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          page_path: string
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          page_path?: string
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      product_performance_stats: {
+        Row: {
+          add_to_cart: number | null
+          created_at: string
+          date: string
+          id: string
+          product_id: string
+          purchases: number | null
+          revenue: number | null
+          updated_at: string
+          views: number | null
+        }
+        Insert: {
+          add_to_cart?: number | null
+          created_at?: string
+          date?: string
+          id?: string
+          product_id: string
+          purchases?: number | null
+          revenue?: number | null
+          updated_at?: string
+          views?: number | null
+        }
+        Update: {
+          add_to_cart?: number | null
+          created_at?: string
+          date?: string
+          id?: string
+          product_id?: string
+          purchases?: number | null
+          revenue?: number | null
+          updated_at?: string
+          views?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
