@@ -77,7 +77,7 @@ export function HeroSection() {
   }, [nextSlide]);
 
   return (
-    <section className="relative overflow-hidden min-h-[85vh] flex items-center">
+    <section className="relative overflow-hidden min-h-[70vh] md:min-h-[85vh] flex items-center">
       <div className="absolute inset-0 z-0">
         {slides.map((slide: { url: string; alt: string }, index: number) => (
           <div
@@ -89,7 +89,7 @@ export function HeroSection() {
             <img
               src={slide.url}
               alt={slide.alt}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover object-center md:object-top"
               style={{
                 filter: 'contrast(1.05) saturate(1.1) brightness(1.02)',
                 imageRendering: 'auto',
@@ -99,32 +99,32 @@ export function HeroSection() {
             />
           </div>
         ))}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-black/50" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/60 md:from-black/30 md:via-black/40 md:to-black/50" />
       </div>
 
       {slides.length > 1 && (
         <>
           <button
             onClick={prevSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-all duration-300 text-white"
+            className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-20 p-1.5 md:p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-all duration-300 text-white"
             aria-label="Previous slide"
           >
-            <ChevronLeft className="h-6 w-6" />
+            <ChevronLeft className="h-5 w-5 md:h-6 md:w-6" />
           </button>
           <button
             onClick={nextSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-all duration-300 text-white"
+            className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-20 p-1.5 md:p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-all duration-300 text-white"
             aria-label="Next slide"
           >
-            <ChevronRight className="h-6 w-6" />
+            <ChevronRight className="h-5 w-5 md:h-6 md:w-6" />
           </button>
 
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+          <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2">
             {slides.map((_: unknown, index: number) => (
               <button
                 key={index}
                 onClick={() => goToSlide(index)}
-                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full transition-all duration-300 ${
                   index === currentSlide 
                     ? "bg-white scale-110" 
                     : "bg-white/40 hover:bg-white/60"
@@ -136,23 +136,22 @@ export function HeroSection() {
         </>
       )}
 
-      <div className="container relative z-10 py-20 md:py-32">
+      <div className="container relative z-10 py-12 px-6 md:py-32 md:px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-white/90 animate-fade-in">
-            <Recycle className="h-4 w-4" aria-hidden="true" />
+          <div className="mb-4 md:mb-6 inline-flex items-center gap-2 text-xs md:text-sm font-medium text-white/90 animate-fade-in">
+            <Recycle className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden="true" />
             <span>{content.badge}</span>
           </div>
 
             <h1 
-              className="mb-6 font-serif text-5xl font-normal tracking-tight text-white md:text-6xl lg:text-7xl animate-fade-in leading-[1.1]" 
+              className="mb-4 md:mb-6 font-serif text-3xl sm:text-4xl font-normal tracking-tight text-white md:text-6xl lg:text-7xl animate-fade-in leading-[1.15]" 
               style={{ animationDelay: "0.1s" }}
               dangerouslySetInnerHTML={{ __html: content.headline }}
             />
 
-          <p className="mb-10 text-lg text-white/80 md:text-xl max-w-2xl mx-auto animate-fade-in leading-relaxed" style={{ animationDelay: "0.2s" }}>
+          <p className="mb-8 md:mb-10 text-base md:text-xl text-white/85 max-w-2xl mx-auto animate-fade-in leading-relaxed px-2 md:px-0" style={{ animationDelay: "0.2s" }}>
             {content.subheadline}
           </p>
-
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row animate-fade-in" style={{ animationDelay: "0.3s" }}>
             <Link to={content.cta_primary_link}>
               <Button size="lg" className="gap-2 bg-[#2D5A43] text-white hover:bg-[#3d7a5a] border-0 px-8 rounded-full">
