@@ -64,14 +64,14 @@ export function FeaturedProducts() {
 
   useEffect(() => {
     async function fetchProducts() {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("products")
         .select("id, name, price, currency, category, image_url, carbon_offset_kg, source_location")
         .eq("is_active", true)
         .limit(4);
 
       if (!error && data && data.length > 0) {
-        setProducts(data);
+        setProducts(data as Product[]);
       } else {
         setProducts(FALLBACK_PRODUCTS);
       }

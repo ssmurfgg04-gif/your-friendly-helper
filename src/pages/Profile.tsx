@@ -69,7 +69,7 @@ const Profile = () => {
     setIsLoading(true);
     try {
       // Fetch profile
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await (supabase as any)
         .from("profiles")
         .select("*")
         .eq("user_id", user.id)
@@ -80,7 +80,7 @@ const Profile = () => {
       }
 
       if (profileData) {
-        setProfile(profileData);
+        setProfile(profileData as Profile);
         setFullName(profileData.full_name || "");
         setPhone(profileData.phone || "");
         setAddressLine1(profileData.address_line1 || "");

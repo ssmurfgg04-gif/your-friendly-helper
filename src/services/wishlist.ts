@@ -9,17 +9,17 @@ export interface WishlistItem {
 
 export const wishlistService = {
   async getWishlist(userId: string): Promise<WishlistItem[]> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("wishlists")
       .select("*")
       .eq("user_id", userId);
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as WishlistItem[];
   },
 
   async addToWishlist(userId: string, productId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("wishlists")
       .insert({ user_id: userId, product_id: productId });
 
@@ -27,7 +27,7 @@ export const wishlistService = {
   },
 
   async removeFromWishlist(userId: string, productId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("wishlists")
       .delete()
       .eq("user_id", userId)
