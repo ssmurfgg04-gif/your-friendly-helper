@@ -43,13 +43,13 @@ const Wishlist = () => {
       }
 
       const productIds = items.map(item => item.product_id);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("products")
         .select("id, name, price, currency, image_url, category, carbon_offset_kg")
         .in("id", productIds);
 
       if (!error && data) {
-        setProducts(data);
+        setProducts(data as Product[]);
       }
       setProductsLoading(false);
     }

@@ -37,7 +37,7 @@ const ProductDetail = () => {
     async function fetchProduct() {
       if (!id) return;
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("products")
         .select("*")
         .eq("id", id)
@@ -45,7 +45,7 @@ const ProductDetail = () => {
         .maybeSingle();
 
       if (!error && data) {
-          setProduct(data);
+          setProduct(data as Product);
           trackProductInteraction(data.id, 'view', data.name);
         }
       setIsLoading(false);

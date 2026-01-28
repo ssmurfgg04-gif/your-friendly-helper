@@ -130,14 +130,14 @@ const Admin = () => {
   const fetchData = async () => {
     setIsLoading(true);
     const [productsRes, ordersRes, metricsRes] = await Promise.all([
-      supabase.from("products").select("*").order("created_at", { ascending: false }),
-      supabase.from("orders").select("*").order("created_at", { ascending: false }),
-      supabase.from("impact_metrics").select("*").order("recorded_at", { ascending: false }),
+      (supabase as any).from("products").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("orders").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("impact_metrics").select("*").order("recorded_at", { ascending: false }),
     ]);
 
-    if (productsRes.data) setProducts(productsRes.data);
-    if (ordersRes.data) setOrders(ordersRes.data);
-    if (metricsRes.data) setMetrics(metricsRes.data);
+    if (productsRes.data) setProducts(productsRes.data as Product[]);
+    if (ordersRes.data) setOrders(ordersRes.data as Order[]);
+    if (metricsRes.data) setMetrics(metricsRes.data as ImpactMetric[]);
     setIsLoading(false);
   };
 

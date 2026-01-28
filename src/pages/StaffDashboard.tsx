@@ -140,16 +140,16 @@ const StaffDashboard = () => {
     setIsLoading(true);
     
     const [ordersRes, productsRes, subscribersRes] = await Promise.all([
-      supabase.from("orders").select("*").order("created_at", { ascending: false }),
-      supabase.from("products").select("*").order("created_at", { ascending: false }),
-      supabase.from("newsletter_subscribers").select("*").order("subscribed_at", { ascending: false }),
+      (supabase as any).from("orders").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("products").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("newsletter_subscribers").select("*").order("subscribed_at", { ascending: false }),
     ]);
 
     if (ordersRes.data) {
-      setOrders(ordersRes.data);
-      const completed = ordersRes.data.filter(o => o.status === "delivered" || o.status === "completed");
-      const pending = ordersRes.data.filter(o => o.status === "pending" || o.status === "processing");
-      const revenue = completed.reduce((sum, o) => sum + Number(o.total_amount), 0);
+      setOrders(ordersRes.data as Order[]);
+      const completed = ordersRes.data.filter((o: Order) => o.status === "delivered" || o.status === "completed");
+      const pending = ordersRes.data.filter((o: Order) => o.status === "pending" || o.status === "processing");
+      const revenue = completed.reduce((sum: number, o: Order) => sum + Number(o.total_amount), 0);
       
       setStats(prev => ({
         ...prev,
@@ -161,8 +161,8 @@ const StaffDashboard = () => {
     }
 
     if (productsRes.data) {
-      setProducts(productsRes.data);
-      const lowStock = productsRes.data.filter(p => p.stock_quantity < 10);
+      setProducts(productsRes.data as Product[]);
+      const lowStock = productsRes.data.filter((p: Product) => p.stock_quantity < 10);
       setStats(prev => ({
         ...prev,
         totalProducts: productsRes.data.length,
