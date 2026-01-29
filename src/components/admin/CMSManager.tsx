@@ -183,6 +183,18 @@ interface SiteContent {
   updated_at?: string;
 }
 
+// Helper to parse content which might be string or object
+const parseContent = (content: unknown): Record<string, unknown> => {
+  if (typeof content === 'string') {
+    try {
+      return JSON.parse(content);
+    } catch {
+      return {};
+    }
+  }
+  return (content as Record<string, unknown>) || {};
+};
+
 export function CMSManager() {
   const queryClient = useQueryClient();
   const [selectedContentId, setSelectedContentId] = useState<string>("");
@@ -204,7 +216,10 @@ export function CMSManager() {
         .order("page_name", { ascending: true })
         .order("section_key", { ascending: true });
       if (error) throw error;
-      return data as SiteContent[];
+      return (data || []).map(item => ({
+        ...item,
+        content: parseContent(item.content),
+      })) as SiteContent[];
     },
   });
 
@@ -216,7 +231,7 @@ export function CMSManager() {
     mutationFn: async ({ id, content }: { id: string; content: Record<string, unknown> }) => {
       const { error } = await supabase
         .from("site_content")
-        .update({ content: content as unknown as Json, updated_at: new Date().toISOString() })
+        .update({ content: JSON.stringify(content), updated_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
     },
@@ -234,7 +249,7 @@ export function CMSManager() {
     mutationFn: async ({ page, section }: { page: string; section: string }) => {
       const { error } = await supabase
         .from("site_content")
-        .insert({ page_name: page, section_key: section, content: {} });
+        .insert({ page_name: page, section_key: section, content: JSON.stringify({}) });
       if (error) throw error;
     },
     onSuccess: () => {

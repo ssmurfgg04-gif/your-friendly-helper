@@ -33,10 +33,22 @@ export function ResendIntegration() {
         .from("site_content")
         .select("content")
         .eq("section_key", "resend")
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      const content = data?.content as Record<string, unknown> | null;
-      if (!content) return null;
+        .maybeSingle();
+      if (error) throw error;
+      if (!data?.content) return null;
+      
+      // Parse content which might be string or object
+      let content: Record<string, unknown>;
+      if (typeof data.content === 'string') {
+        try {
+          content = JSON.parse(data.content);
+        } catch {
+          return null;
+        }
+      } else {
+        content = data.content as Record<string, unknown>;
+      }
+      
       return {
         api_key: (content.api_key as string) || "",
         from_email: (content.from_email as string) || undefined,
@@ -53,12 +65,12 @@ export function ResendIntegration() {
       const { error } = await supabase
         .from("site_content")
         .update({
-          content: {
+          content: JSON.stringify({
             api_key: newApiKey,
             connected: !!newApiKey,
             last_sync: settings?.last_sync || null,
             synced_count: settings?.synced_count || 0,
-          },
+          }),
           updated_at: new Date().toISOString(),
         })
         .eq("section_key", "resend");
@@ -118,11 +130,11 @@ export function ResendIntegration() {
         const { error: updateError } = await supabase
           .from("site_content")
           .update({
-            content: {
+            content: JSON.stringify({
               ...settings,
               last_sync: new Date().toISOString(),
               synced_count: data.synced_count || 0,
-            },
+            }),
             updated_at: new Date().toISOString(),
           })
           .eq("section_key", "resend");
@@ -146,12 +158,12 @@ export function ResendIntegration() {
     const { error } = await supabase
       .from("site_content")
       .update({
-        content: {
+        content: JSON.stringify({
           api_key: "",
           connected: false,
           last_sync: null,
           synced_count: 0,
-        },
+        }),
         updated_at: new Date().toISOString(),
       })
       .eq("section_key", "resend");

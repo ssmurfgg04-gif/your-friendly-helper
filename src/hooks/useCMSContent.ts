@@ -9,6 +9,18 @@ export interface CMSContent {
   is_active: boolean;
 }
 
+// Helper to parse content which might be string or object
+const parseContent = (content: unknown): Record<string, unknown> => {
+  if (typeof content === 'string') {
+    try {
+      return JSON.parse(content);
+    } catch {
+      return {};
+    }
+  }
+  return (content as Record<string, unknown>) || {};
+};
+
 export function useCMSContent(pageName: string, sectionKey: string) {
   return useQuery({
     queryKey: ["cms-content", pageName, sectionKey],
@@ -19,15 +31,15 @@ export function useCMSContent(pageName: string, sectionKey: string) {
         .eq("page_name", pageName)
         .eq("section_key", sectionKey)
         .eq("is_active", true)
-        .single();
+        .maybeSingle();
 
-      if (error) {
-        if (error.code === "PGRST116") {
-          return null;
-        }
-        throw error;
-      }
-      return data as CMSContent;
+      if (error) throw error;
+      if (!data) return null;
+      
+      return {
+        ...data,
+        content: parseContent(data.content),
+      } as CMSContent;
     },
   });
 }
@@ -42,7 +54,11 @@ export function useAllCMSContent(pageName?: string) {
       }
       const { data, error } = await query;
       if (error) throw error;
-      return data as CMSContent[];
+      
+      return (data || []).map(item => ({
+        ...item,
+        content: parseContent(item.content),
+      })) as CMSContent[];
     },
   });
 }
