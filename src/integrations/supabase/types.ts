@@ -14,16 +14,555 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      digital_library: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          downloads: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+          is_active: boolean | null
+          thumbnail_url: string | null
+          title: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          downloads?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          is_active?: boolean | null
+          thumbnail_url?: string | null
+          title: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          downloads?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          is_active?: boolean | null
+          thumbnail_url?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      impact_metrics: {
+        Row: {
+          created_at: string
+          id: string
+          metric_name: string
+          metric_value: number
+          notes: string | null
+          recorded_at: string
+          unit: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metric_name: string
+          metric_value: number
+          notes?: string | null
+          recorded_at?: string
+          unit: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metric_name?: string
+          metric_value?: number
+          notes?: string | null
+          recorded_at?: string
+          unit?: string
+        }
+        Relationships: []
+      }
+      newsletter_subscribers: {
+        Row: {
+          email: string
+          id: string
+          is_active: boolean
+          name: string | null
+          source: string | null
+          subscribed_at: string
+          unsubscribed_at: string | null
+        }
+        Insert: {
+          email: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          source?: string | null
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+        }
+        Update: {
+          email?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          source?: string | null
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          currency: string | null
+          customer_location: string | null
+          estimated_delivery_date: string | null
+          id: string
+          items: Json
+          mpesa_transaction_id: string | null
+          payment_intent_id: string | null
+          payment_method: string | null
+          shipping_address: Json | null
+          status: string
+          stripe_session_id: string | null
+          total_amount: number
+          tracking_info: Json | null
+          updated_at: string
+          user_email: string
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          currency?: string | null
+          customer_location?: string | null
+          estimated_delivery_date?: string | null
+          id?: string
+          items?: Json
+          mpesa_transaction_id?: string | null
+          payment_intent_id?: string | null
+          payment_method?: string | null
+          shipping_address?: Json | null
+          status?: string
+          stripe_session_id?: string | null
+          total_amount: number
+          tracking_info?: Json | null
+          updated_at?: string
+          user_email: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          currency?: string | null
+          customer_location?: string | null
+          estimated_delivery_date?: string | null
+          id?: string
+          items?: Json
+          mpesa_transaction_id?: string | null
+          payment_intent_id?: string | null
+          payment_method?: string | null
+          shipping_address?: Json | null
+          status?: string
+          stripe_session_id?: string | null
+          total_amount?: number
+          tracking_info?: Json | null
+          updated_at?: string
+          user_email?: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
+      }
+      page_views: {
+        Row: {
+          city: string | null
+          country: string | null
+          created_at: string
+          device_type: string | null
+          id: string
+          ip_hash: string | null
+          page_path: string
+          referrer: string | null
+          session_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          device_type?: string | null
+          id?: string
+          ip_hash?: string | null
+          page_path: string
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          device_type?: string | null
+          id?: string
+          ip_hash?: string | null
+          page_path?: string
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      payment_configurations: {
+        Row: {
+          connection_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          is_test_mode: boolean
+          metadata: Json | null
+          name: string
+          provider: string
+          stripe_account_id: string | null
+          stripe_connect_id: string | null
+          stripe_publishable_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          connection_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          is_test_mode?: boolean
+          metadata?: Json | null
+          name: string
+          provider?: string
+          stripe_account_id?: string | null
+          stripe_connect_id?: string | null
+          stripe_publishable_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          connection_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          is_test_mode?: boolean
+          metadata?: Json | null
+          name?: string
+          provider?: string
+          stripe_account_id?: string | null
+          stripe_connect_id?: string | null
+          stripe_publishable_key?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      product_performance_stats: {
+        Row: {
+          add_to_cart: number | null
+          created_at: string
+          date: string
+          id: string
+          product_id: string
+          purchases: number | null
+          revenue: number | null
+          views: number | null
+        }
+        Insert: {
+          add_to_cart?: number | null
+          created_at?: string
+          date?: string
+          id?: string
+          product_id: string
+          purchases?: number | null
+          revenue?: number | null
+          views?: number | null
+        }
+        Update: {
+          add_to_cart?: number | null
+          created_at?: string
+          date?: string
+          id?: string
+          product_id?: string
+          purchases?: number | null
+          revenue?: number | null
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_performance_stats_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_views: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_views_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          carbon_offset_kg: number | null
+          category: string
+          created_at: string
+          currency: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          name: string
+          price: number
+          stock_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          carbon_offset_kg?: number | null
+          category?: string
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name: string
+          price: number
+          stock_quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          carbon_offset_kg?: number | null
+          category?: string
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name?: string
+          price?: number
+          stock_quantity?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: Json | null
+          description: string | null
+          file_url: string | null
+          id: string
+          report_type: string | null
+          status: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json | null
+          description?: string | null
+          file_url?: string | null
+          id?: string
+          report_type?: string | null
+          status?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json | null
+          description?: string | null
+          file_url?: string | null
+          id?: string
+          report_type?: string | null
+          status?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      site_content: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          metadata: Json | null
+          page_name: string
+          section_key: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          page_name: string
+          section_key: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          page_name?: string
+          section_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscribers: {
+        Row: {
+          email: string
+          id: string
+          is_active: boolean
+          name: string | null
+          subscribed_at: string
+          unsubscribed_at: string | null
+        }
+        Insert: {
+          email: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+        }
+        Update: {
+          email?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "admin"
+        | "moderator"
+        | "user"
+        | "marketing"
+        | "shipping"
+        | "support"
+        | "content"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +689,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "admin",
+        "moderator",
+        "user",
+        "marketing",
+        "shipping",
+        "support",
+        "content",
+      ],
+    },
   },
 } as const

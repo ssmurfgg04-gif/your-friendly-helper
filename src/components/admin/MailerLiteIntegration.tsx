@@ -31,10 +31,22 @@ export function MailerLiteIntegration() {
         .from("site_content")
         .select("content")
         .eq("section_key", "mailerlite")
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      const content = data?.content as Record<string, unknown> | null;
-      if (!content) return null;
+        .maybeSingle();
+      if (error) throw error;
+      if (!data?.content) return null;
+      
+      // Parse content which might be string or object
+      let content: Record<string, unknown>;
+      if (typeof data.content === 'string') {
+        try {
+          content = JSON.parse(data.content);
+        } catch {
+          return null;
+        }
+      } else {
+        content = data.content as Record<string, unknown>;
+      }
+      
       return {
         api_key: (content.api_key as string) || "",
         connected: (content.connected as boolean) || false,
@@ -61,13 +73,13 @@ export function MailerLiteIntegration() {
         .from("site_content")
         .select("id")
         .eq("section_key", "mailerlite")
-        .single();
+        .maybeSingle();
 
       if (existing) {
         const { error } = await supabase
           .from("site_content")
           .update({
-            content: newSettings,
+            content: JSON.stringify(newSettings),
             updated_at: new Date().toISOString(),
           })
           .eq("section_key", "mailerlite");
@@ -78,7 +90,7 @@ export function MailerLiteIntegration() {
           .insert({
             page_name: "integrations",
             section_key: "mailerlite",
-            content: newSettings,
+            content: JSON.stringify(newSettings),
           });
         if (error) throw error;
       }
@@ -115,11 +127,11 @@ const response = await fetch("/.netlify/functions/sync-to-mailerlite", {
           await supabase
             .from("site_content")
             .update({
-              content: {
+              content: JSON.stringify({
                 ...settings,
                 group_id: data.group_id,
                 group_name: data.group_name,
-              },
+              }),
               updated_at: new Date().toISOString(),
             })
             .eq("section_key", "mailerlite");
@@ -157,13 +169,13 @@ const response = await fetch("/.netlify/functions/sync-to-mailerlite", {
         const { error: updateError } = await supabase
           .from("site_content")
           .update({
-            content: {
+            content: JSON.stringify({
               ...settings,
               last_sync: new Date().toISOString(),
               synced_count: data.synced_count || 0,
-              group_id: data.group_id || settings.group_id,
-              group_name: data.group_name || settings.group_name,
-            },
+              group_id: data.group_id || settings?.group_id,
+              group_name: data.group_name || settings?.group_name,
+            }),
             updated_at: new Date().toISOString(),
           })
           .eq("section_key", "mailerlite");
@@ -187,14 +199,14 @@ const response = await fetch("/.netlify/functions/sync-to-mailerlite", {
     const { error } = await supabase
       .from("site_content")
       .update({
-        content: {
+        content: JSON.stringify({
           api_key: "",
           connected: false,
           last_sync: null,
           synced_count: 0,
           group_id: null,
           group_name: null,
-        },
+        }),
         updated_at: new Date().toISOString(),
       })
       .eq("section_key", "mailerlite");
