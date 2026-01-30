@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { Loader2, TrendingUp, Users, Eye, Globe, Monitor, Smartphone, Tablet, MapPin, RefreshCw } from "lucide-react";
 
 interface AnalyticsData {
@@ -30,15 +31,103 @@ export function AnalyticsDashboard() {
     else setIsLoading(true);
     
     try {
-      // Placeholder analytics - page_views table doesn't exist yet
+      const daysAgo = parseInt(timeRange);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysAgo);
+      
+      // Fetch page views from database
+      const { data: pageViews, error } = await supabase
+        .from("page_views")
+        .select("*")
+        .gte("created_at", startDate.toISOString())
+        .order("created_at", { ascending: false });
+      
+      if (error) {
+        console.error("Error fetching page views:", error);
+        // Set empty analytics if error
+        setAnalytics({
+          totalVisits: 0,
+          uniqueVisitors: 0,
+          topPages: [],
+          deviceBreakdown: [],
+          visitsByDay: [],
+          visitorLocations: [],
+          recentVisitors: [],
+        });
+        return;
+      }
+      
+      const views = pageViews || [];
+      
+      // Calculate total visits
+      const totalVisits = views.length;
+      
+      // Calculate unique visitors (by session_id or ip_hash)
+      const uniqueSessionIds = new Set(views.map(v => v.session_id || v.ip_hash).filter(Boolean));
+      const uniqueVisitors = uniqueSessionIds.size;
+      
+      // Calculate top pages
+      const pageCounts: Record<string, number> = {};
+      views.forEach(v => {
+        pageCounts[v.page_path] = (pageCounts[v.page_path] || 0) + 1;
+      });
+      const topPages = Object.entries(pageCounts)
+        .map(([path, count]) => ({ path, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+      
+      // Calculate device breakdown
+      const deviceCounts: Record<string, number> = {};
+      views.forEach(v => {
+        const device = v.device_type || 'desktop';
+        deviceCounts[device] = (deviceCounts[device] || 0) + 1;
+      });
+      const deviceBreakdown = Object.entries(deviceCounts)
+        .map(([device, count]) => ({ device, count }))
+        .sort((a, b) => b.count - a.count);
+      
+      // Calculate visits by day
+      const dayCounts: Record<string, number> = {};
+      views.forEach(v => {
+        const date = new Date(v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        dayCounts[date] = (dayCounts[date] || 0) + 1;
+      });
+      const visitsByDay = Object.entries(dayCounts)
+        .map(([date, count]) => ({ date, count }))
+        .slice(-7);
+      
+      // Calculate visitor locations
+      const locationCounts: Record<string, { country: string; count: number }> = {};
+      views.forEach(v => {
+        if (v.city || v.country) {
+          const location = v.city ? `${v.city}, ${v.country || 'Unknown'}` : (v.country || 'Unknown');
+          if (!locationCounts[location]) {
+            locationCounts[location] = { country: v.country || 'Unknown', count: 0 };
+          }
+          locationCounts[location].count++;
+        }
+      });
+      const visitorLocations = Object.entries(locationCounts)
+        .map(([location, data]) => ({ location, country: data.country, count: data.count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+      
+      // Recent visitors
+      const recentVisitors = views.slice(0, 10).map(v => ({
+        created_at: v.created_at,
+        page_path: v.page_path,
+        country: v.country || 'Unknown',
+        city: v.city || 'Unknown',
+      }));
+      
       setAnalytics({
-        totalVisits: 0,
-        uniqueVisitors: 0,
-        topPages: [],
-        deviceBreakdown: [],
-        visitsByDay: [],
-        visitorLocations: [],
-        recentVisitors: [],
+        totalVisits,
+        uniqueVisitors,
+        topPages,
+        deviceBreakdown,
+        visitsByDay,
+        visitorLocations,
+        recentVisitors,
       });
     } catch (error) {
       console.error("Failed to fetch analytics:", error);
