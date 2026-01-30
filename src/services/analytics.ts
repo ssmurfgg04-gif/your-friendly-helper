@@ -103,17 +103,31 @@ async function getGeoData(): Promise<GeoData> {
   return {};
 }
 
+function getDeviceType(): string {
+  const ua = navigator.userAgent.toLowerCase();
+  if (/tablet|ipad|playbook|silk/i.test(ua)) return 'tablet';
+  if (/mobile|iphone|ipod|android|blackberry|opera mini|opera mobi|iemobile/i.test(ua)) return 'mobile';
+  return 'desktop';
+}
+
 export async function trackPageView(pagePath: string) {
   try {
     const sid = getSessionId();
     const userAgent = navigator.userAgent;
     const referrer = document.referrer || null;
+    const deviceType = getDeviceType();
+    
+    // Get geo data asynchronously (non-blocking)
+    const geoData = await getGeoData();
 
     const { error } = await supabase.from('page_views').insert({
       page_path: pagePath,
       session_id: sid,
       user_agent: userAgent,
-      referrer: referrer
+      referrer: referrer,
+      device_type: deviceType,
+      country: geoData.country || null,
+      city: geoData.city || null,
     });
 
     if (error) {
