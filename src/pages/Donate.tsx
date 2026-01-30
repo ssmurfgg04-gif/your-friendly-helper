@@ -95,10 +95,8 @@ const Donate = () => {
     setIsLoading(true);
     try {
       if (paymentMethod === "stripe") {
-        const response = await fetch("/api/create-checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        const { data, error } = await supabase.functions.invoke("create-checkout", {
+          body: {
             items: [{
               id: "donation",
               name: `Donation - £${selectedAmount}`,
@@ -108,41 +106,17 @@ const Donate = () => {
             customerEmail: email,
             customerName: name,
             customerLocation,
-            locationMetadata: locationData,
             mode: "payment",
-          }),
+          },
         });
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Payment failed");
+        if (error) throw error;
         if (data?.url) {
           window.location.href = data.url;
         }
       } else {
-        const kesAmount = Math.round(selectedAmount * 155);
-        
-        const response = await fetch("/api/mpesa-stk-push", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone: phone.replace(/\s/g, ""),
-            amount: kesAmount,
-            items: [{
-              id: "donation",
-              name: `Donation - KSh${kesAmount}`,
-              price: kesAmount,
-              quantity: 1,
-            }],
-            customerEmail: email,
-            customerName: name,
-            customerLocation,
-            locationMetadata: locationData,
-          }),
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "M-Pesa request failed");
-        toast.success("Check your phone for the M-Pesa prompt!");
+        // M-Pesa flow - for now just show info
+        toast.info("M-Pesa payments coming soon! Please use card payment.");
       }
     } catch (error) {
       console.error("Donation error:", error);
