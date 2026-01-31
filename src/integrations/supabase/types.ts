@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          recipient_id: string | null
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          recipient_id?: string | null
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          recipient_id?: string | null
+          sender_id?: string
+        }
+        Relationships: []
+      }
       digital_library: {
         Row: {
           category: string | null
@@ -119,17 +143,21 @@ export type Database = {
           created_at: string
           currency: string | null
           customer_location: string | null
+          delivered_at: string | null
           estimated_delivery_date: string | null
           id: string
           items: Json
           mpesa_transaction_id: string | null
           payment_intent_id: string | null
           payment_method: string | null
+          shipped_at: string | null
           shipping_address: Json | null
           status: string
           stripe_session_id: string | null
           total_amount: number
+          tracking_carrier: string | null
           tracking_info: Json | null
+          tracking_number: string | null
           updated_at: string
           user_email: string
           user_id: string | null
@@ -140,17 +168,21 @@ export type Database = {
           created_at?: string
           currency?: string | null
           customer_location?: string | null
+          delivered_at?: string | null
           estimated_delivery_date?: string | null
           id?: string
           items?: Json
           mpesa_transaction_id?: string | null
           payment_intent_id?: string | null
           payment_method?: string | null
+          shipped_at?: string | null
           shipping_address?: Json | null
           status?: string
           stripe_session_id?: string | null
           total_amount: number
+          tracking_carrier?: string | null
           tracking_info?: Json | null
+          tracking_number?: string | null
           updated_at?: string
           user_email: string
           user_id?: string | null
@@ -161,17 +193,21 @@ export type Database = {
           created_at?: string
           currency?: string | null
           customer_location?: string | null
+          delivered_at?: string | null
           estimated_delivery_date?: string | null
           id?: string
           items?: Json
           mpesa_transaction_id?: string | null
           payment_intent_id?: string | null
           payment_method?: string | null
+          shipped_at?: string | null
           shipping_address?: Json | null
           status?: string
           stripe_session_id?: string | null
           total_amount?: number
+          tracking_carrier?: string | null
           tracking_info?: Json | null
+          tracking_number?: string | null
           updated_at?: string
           user_email?: string
           user_id?: string | null
@@ -523,18 +559,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          responsibilities: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          responsibilities?: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          responsibilities?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
