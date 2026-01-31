@@ -18,16 +18,16 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-type AppRole = "admin" | "moderator" | "user";
+type AppRole = "admin" | "moderator" | "marketing" | "shipping" | "support" | "content" | "user";
 
 interface AdminUser {
   id: string;
+  user_id: string;
   email: string;
+  full_name: string | null;
   role: AppRole;
   responsibilities: string | null;
   created_at: string;
-  last_sign_in_at: string | null;
-  confirmed: boolean;
 }
 
 export function AdminUserManager() {
@@ -39,50 +39,85 @@ export function AdminUserManager() {
   const { data: admins, isLoading } = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
-      const { data: roles, error } = await (supabase as any)
+      // First get all user roles that aren't regular users
+      const { data: roles, error } = await supabase
         .from("user_roles")
-        .select("user_id, role, responsibilities, created_at")
+        .select("id, user_id, role, responsibilities, created_at")
         .neq("role", "user");
 
       if (error) throw error;
+      if (!roles || roles.length === 0) return [];
 
-      const adminUsers: AdminUser[] = (roles || []).map((role: any) => ({
-        id: role.user_id,
-        email: role.user_id,
-        role: role.role as AppRole,
-        responsibilities: role.responsibilities,
-        created_at: role.created_at,
-        last_sign_in_at: null,
-        confirmed: true,
-      }));
+      // Get profile information for these users
+      const userIds = roles.map((r) => r.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, email, full_name")
+        .in("user_id", userIds);
+
+      const profileMap = new Map(
+        (profiles || []).map((p) => [p.user_id, p])
+      );
+
+      const adminUsers: AdminUser[] = roles.map((role) => {
+        const profile = profileMap.get(role.user_id);
+        return {
+          id: role.id,
+          user_id: role.user_id,
+          email: profile?.email || role.user_id.slice(0, 8) + "...",
+          full_name: profile?.full_name || null,
+          role: role.role as AppRole,
+          responsibilities: (role as any).responsibilities || null,
+          created_at: role.created_at,
+        };
+      });
 
       return adminUsers;
     },
   });
 
   const addAdminMutation = useMutation({
-    mutationFn: async ({ email: userEmail, role, responsibilities: resp }: { email: string; role: AppRole; responsibilities: string }) => {
-      const { data: existingUser } = await (supabase as any)
-        .from("user_roles")
+    mutationFn: async ({ 
+      userEmail, 
+      role, 
+      resp 
+    }: { userEmail: string; role: AppRole; resp: string }) => {
+      // First, find the user by email in profiles
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
         .select("user_id")
-        .eq("user_id", userEmail)
-        .eq("role", role)
-        .single();
+        .eq("email", userEmail.toLowerCase())
+        .maybeSingle();
 
-      if (existingUser) {
+      if (profileError) throw profileError;
+      
+      if (!profile) {
+        throw new Error("User not found. They must sign up first before being assigned a role.");
+      }
+
+      // Check if user already has this role
+      const { data: existingRole } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", profile.user_id)
+        .eq("role", role)
+        .maybeSingle();
+
+      if (existingRole) {
         throw new Error("User already has this role");
       }
 
-      const { error } = await (supabase as any)
+      // Insert the new role
+      const { error } = await supabase
         .from("user_roles")
         .insert({
-          user_id: userEmail,
+          user_id: profile.user_id,
           role: role,
           responsibilities: resp || null,
-        });
+        } as any);
 
       if (error) throw error;
-      return { success: true, invited: false };
+      return { success: true };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
@@ -96,12 +131,11 @@ export function AdminUserManager() {
   });
 
   const removeAdminMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: AppRole }) => {
-      const { error } = await (supabase as any)
+    mutationFn: async ({ id }: { id: string }) => {
+      const { error } = await supabase
         .from("user_roles")
         .delete()
-        .eq("user_id", userId)
-        .eq("role", role);
+        .eq("id", id);
 
       if (error) throw error;
       return { success: true };
@@ -118,13 +152,17 @@ export function AdminUserManager() {
   const handleAddAdmin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    addAdminMutation.mutate({ email, role: selectedRole, responsibilities });
+    addAdminMutation.mutate({ userEmail: email, role: selectedRole, resp: responsibilities });
   };
 
   const getRoleBadgeVariant = (role: AppRole) => {
     switch (role) {
       case "admin": return "default";
       case "moderator": return "outline";
+      case "marketing": return "secondary";
+      case "shipping": return "secondary";
+      case "support": return "secondary";
+      case "content": return "secondary";
       default: return "secondary";
     }
   };
@@ -239,14 +277,7 @@ export function AdminUserManager() {
                         {admin.responsibilities || "No specific responsibilities assigned."}
                       </TableCell>
                       <TableCell className="align-top">
-                        {admin.confirmed ? (
-                          <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Active</Badge>
-                        ) : (
-                          <div className="flex items-center gap-1 text-amber-600 text-xs">
-                            <Clock className="h-3 w-3" />
-                            <span>Pending Invite</span>
-                          </div>
-                        )}
+                        <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Active</Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground align-top whitespace-nowrap">
                         {new Date(admin.created_at).toLocaleDateString()}
@@ -255,7 +286,7 @@ export function AdminUserManager() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => removeAdminMutation.mutate({ userId: admin.id, role: admin.role })}
+                          onClick={() => removeAdminMutation.mutate({ id: admin.id })}
                           disabled={removeAdminMutation.isPending}
                           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                         >

@@ -133,26 +133,22 @@ export function OrdersManager() {
     if (!selectedOrder) return;
     setIsSendingUpdate(true);
     try {
-      const response = await fetch("/.netlify/functions/send-order-status-update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke("send-order-status-update", {
+        body: {
           orderId: selectedOrder.id,
           userEmail: selectedOrder.user_email,
           userName: selectedOrder.user_name,
-          status: selectedOrder.status,
+          newStatus: selectedOrder.status,
+          totalAmount: selectedOrder.total_amount,
+          currency: selectedOrder.currency,
           trackingNumber: trackingNumber || selectedOrder.tracking_number,
           trackingCarrier: trackingCarrier || selectedOrder.tracking_carrier,
           estimatedDelivery: estimatedDelivery || selectedOrder.estimated_delivery,
-        }),
+        },
       });
       
-      const data = await response.json();
-      if (data.success) {
-        toast.success("Status update email sent!");
-      } else {
-        toast.error(data.error || "Failed to send email");
-      }
+      if (error) throw error;
+      toast.success("Status update email sent!");
     } catch (error) {
       console.error("Error sending update:", error);
       toast.error("Failed to send status update");
