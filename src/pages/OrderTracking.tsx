@@ -56,6 +56,10 @@ interface Order {
   estimated_delivery_date: string | null;
   mpesa_transaction_id: string | null;
   stripe_session_id: string | null;
+  tracking_number: string | null;
+  tracking_carrier: string | null;
+  shipped_at: string | null;
+  delivered_at: string | null;
 }
 
 const ORDER_STATUSES = [
@@ -391,6 +395,55 @@ const OrderTracking = () => {
                 </CardContent>
               </Card>
 
+              {/* Tracking Information Card */}
+              {(order.tracking_number || order.tracking_carrier) && (
+                <Card className="border-emerald-200 bg-emerald-50/30">
+                  <CardContent className="p-6">
+                    <h3 className="font-semibold text-stone-800 mb-4 flex items-center gap-2">
+                      <Truck className="h-5 w-5 text-emerald-600" />
+                      Tracking Information
+                    </h3>
+                    <div className="space-y-3 text-sm">
+                      {order.tracking_carrier && (
+                        <div className="flex justify-between">
+                          <span className="text-stone-500">Carrier</span>
+                          <span className="font-medium text-stone-800">{order.tracking_carrier}</span>
+                        </div>
+                      )}
+                      {order.tracking_number && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-stone-500">Tracking Number</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-stone-800">{order.tracking_number}</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(order.tracking_number || "");
+                                toast.success("Tracking number copied");
+                              }}
+                              className="p-1 rounded hover:bg-stone-100"
+                            >
+                              <Copy className="h-3 w-3 text-stone-400" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {order.shipped_at && (
+                        <div className="flex justify-between">
+                          <span className="text-stone-500">Shipped On</span>
+                          <span className="font-medium text-stone-800">{formatShortDate(order.shipped_at)}</span>
+                        </div>
+                      )}
+                      {order.delivered_at && (
+                        <div className="flex justify-between">
+                          <span className="text-stone-500">Delivered On</span>
+                          <span className="font-medium text-emerald-700">{formatShortDate(order.delivered_at)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <Card className="border-stone-200">
                 <CardContent className="p-6">
                   <h3 className="font-semibold text-stone-800 mb-4 flex items-center gap-2">
@@ -401,7 +454,8 @@ const OrderTracking = () => {
                     <div className="flex justify-between">
                       <span className="text-stone-500">Method</span>
                       <span className="font-medium text-stone-800">
-                        {order.payment_method === "mpesa" ? "M-Pesa" : "Card Payment"}
+                        {order.payment_method === "mpesa" ? "M-Pesa" : 
+                         order.payment_method === "paystack" ? "Paystack" : "Card Payment"}
                       </span>
                     </div>
                     <div className="flex justify-between">
