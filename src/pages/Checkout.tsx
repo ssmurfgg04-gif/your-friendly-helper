@@ -13,12 +13,16 @@ import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Leaf, Loader2, ArrowLeft, ShoppingBag, Lock, CheckCircle2, MapPin, CreditCard } from "lucide-react";
+import { Leaf, Loader2, ArrowLeft, ShoppingBag, Lock, CheckCircle2, MapPin, CreditCard, Smartphone, Apple } from "lucide-react";
 
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+const PAYSTACK_PUBLIC_KEY = "pk_live_7efdcb627a67e2ab6a1b0bef6d1b96d3970832a2";
+
+type PaymentMethod = "stripe" | "mpesa" | "apple_pay";
 
 interface CartItem {
   id: string;
@@ -258,12 +262,14 @@ export function Checkout() {
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerLocation, setCustomerLocation] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [emailError, setEmailError] = useState("");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("stripe");
 
   const detectLocation = () => {
     setIsDetectingLocation(true);
@@ -329,50 +335,77 @@ export function Checkout() {
       setEmailError("Please enter a valid email");
       return;
     }
+    if (selectedPaymentMethod === "mpesa" && !customerPhone) {
+      toast.error("Phone number is required for M-Pesa");
+      return;
+    }
     setEmailError("");
-
     setIsLoading(true);
+
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: {
-          items: cartItems.map((item) => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-          })),
-          customerEmail,
-          customerName,
-          mode: "payment_intent",
-        },
-      });
+      // Handle Paystack payments (M-Pesa and Apple Pay)
+      if (selectedPaymentMethod === "mpesa" || selectedPaymentMethod === "apple_pay") {
+        const { data, error } = await supabase.functions.invoke("paystack-payment", {
+          body: {
+            items: cartItems.map((item) => ({
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+            })),
+            customerEmail,
+            customerName,
+            customerPhone,
+            paymentMethod: selectedPaymentMethod === "mpesa" ? "mobile_money" : "apple_pay",
+            currency: selectedPaymentMethod === "mpesa" ? "KES" : "GBP",
+            callbackUrl: `${window.location.origin}/checkout/success`,
+          },
+        });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (data?.clientSecret) {
-        setClientSecret(data.clientSecret);
-        setPaymentIntentId(data.paymentIntentId);
-        setShowPayment(true);
+        if (data?.authorization_url) {
+          // Clear cart before redirect
+          localStorage.removeItem("moenviron-cart");
+          window.dispatchEvent(new CustomEvent("cart-updated"));
+          // Redirect to Paystack checkout
+          window.location.href = data.authorization_url;
+          return;
+        }
+      } else {
+        // Handle Stripe payment
+        const { data, error } = await supabase.functions.invoke("create-checkout", {
+          body: {
+            items: cartItems.map((item) => ({
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+            })),
+            customerEmail,
+            customerName,
+            mode: "payment_intent",
+          },
+        });
+
+        if (error) throw error;
+
+        if (data?.clientSecret) {
+          setClientSecret(data.clientSecret);
+          setPaymentIntentId(data.paymentIntentId);
+          setShowPayment(true);
+        }
       }
     } catch (error) {
-      console.error("Error creating payment intent:", error);
+      console.error("Error creating payment:", error);
       toast.error("Failed to initialize payment. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (!stripePromise) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <Navbar />
-        <main className="flex flex-1 items-center justify-center">
-          <p className="text-muted-foreground">Payment system not configured</p>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+  // Allow checkout even without Stripe for Paystack payments
+  const canCheckout = stripePromise || selectedPaymentMethod !== "stripe";
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-background to-muted/20">
@@ -452,22 +485,87 @@ export function Checkout() {
                           Capturing your location helps us calculate environmental impact
                         </p>
                       </div>
-                      <Button
-                      onClick={handleContinueToPayment}
-                      className="w-full"
-                      size="lg"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Loading...
-                        </>
-                      ) : (
-                        "Continue to Payment"
+
+                      {/* Payment Method Selection */}
+                      <div className="space-y-3 pt-4 border-t border-border">
+                        <Label className="text-sm font-medium">Payment Method</Label>
+                        <RadioGroup
+                          value={selectedPaymentMethod}
+                          onValueChange={(value) => setSelectedPaymentMethod(value as PaymentMethod)}
+                          className="grid gap-3"
+                        >
+                          <div className="flex items-center space-x-3 rounded-lg border border-border p-3 hover:bg-muted/50 cursor-pointer">
+                            <RadioGroupItem value="stripe" id="stripe" />
+                            <Label htmlFor="stripe" className="flex items-center gap-2 cursor-pointer flex-1">
+                              <CreditCard className="h-5 w-5 text-primary" />
+                              <div>
+                                <p className="font-medium">Card Payment</p>
+                                <p className="text-xs text-muted-foreground">Pay with Visa, Mastercard, or American Express</p>
+                              </div>
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-3 rounded-lg border border-border p-3 hover:bg-muted/50 cursor-pointer">
+                            <RadioGroupItem value="mpesa" id="mpesa" />
+                            <Label htmlFor="mpesa" className="flex items-center gap-2 cursor-pointer flex-1">
+                              <Smartphone className="h-5 w-5 text-green-600" />
+                              <div>
+                                <p className="font-medium">M-Pesa</p>
+                                <p className="text-xs text-muted-foreground">Pay with M-Pesa mobile money (Kenya)</p>
+                              </div>
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-3 rounded-lg border border-border p-3 hover:bg-muted/50 cursor-pointer">
+                            <RadioGroupItem value="apple_pay" id="apple_pay" />
+                            <Label htmlFor="apple_pay" className="flex items-center gap-2 cursor-pointer flex-1">
+                              <Apple className="h-5 w-5" />
+                              <div>
+                                <p className="font-medium">Apple Pay</p>
+                                <p className="text-xs text-muted-foreground">Fast and secure payment with Apple Pay</p>
+                              </div>
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+
+                      {/* Phone number for M-Pesa */}
+                      {selectedPaymentMethod === "mpesa" && (
+                        <div className="space-y-2">
+                          <Label htmlFor="phone" className="text-sm font-medium">
+                            M-Pesa Phone Number *
+                          </Label>
+                          <Input
+                            id="phone"
+                            type="tel"
+                            value={customerPhone}
+                            onChange={(e) => setCustomerPhone(e.target.value)}
+                            placeholder="+254 712 345 678"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Enter your M-Pesa registered phone number
+                          </p>
+                        </div>
                       )}
-                    </Button>
-                  </div>
+
+                      <Button
+                        onClick={handleContinueToPayment}
+                        className="w-full"
+                        size="lg"
+                        disabled={isLoading || !canCheckout}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Loading...
+                          </>
+                        ) : selectedPaymentMethod === "mpesa" ? (
+                          "Pay with M-Pesa"
+                        ) : selectedPaymentMethod === "apple_pay" ? (
+                          "Pay with Apple Pay"
+                        ) : (
+                          "Continue to Payment"
+                        )}
+                      </Button>
+                    </div>
                 ) : clientSecret ? (
                   <Elements
                     stripe={stripePromise}
