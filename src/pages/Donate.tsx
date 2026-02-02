@@ -86,10 +86,6 @@ const Donate = () => {
       return;
     }
 
-    const locationData = {
-      country,
-      city: city || undefined,
-    };
     const customerLocation = `${city ? city + ", " : ""}${country}`;
 
     setIsLoading(true);
@@ -115,8 +111,28 @@ const Donate = () => {
           window.location.href = data.url;
         }
       } else {
-        // M-Pesa flow - for now just show info
-        toast.info("M-Pesa payments coming soon! Please use card payment.");
+        // M-Pesa flow via Paystack
+        const { data, error } = await supabase.functions.invoke("paystack-payment", {
+          body: {
+            items: [{
+              id: "donation",
+              name: `Donation - KES ${selectedAmount * 150}`, // Approximate conversion
+              price: selectedAmount * 150, // Convert to KES
+              quantity: 1,
+            }],
+            customerEmail: email,
+            customerName: name,
+            customerPhone: phone,
+            paymentMethod: "mobile_money",
+            currency: "KES",
+            callbackUrl: `${window.location.origin}/checkout/success`,
+          },
+        });
+
+        if (error) throw error;
+        if (data?.authorization_url) {
+          window.location.href = data.authorization_url;
+        }
       }
     } catch (error) {
       console.error("Donation error:", error);
@@ -498,7 +514,15 @@ const Donate = () => {
                         }`}
                       >
                         <RadioGroupItem value="mpesa" id="mpesa" />
-                        <Smartphone className="h-5 w-5" />
+                        <div className="relative">
+                          <Smartphone className="h-5 w-5 text-green-600" />
+                          {/* Kenya Flag Badge */}
+                          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white shadow-sm overflow-hidden">
+                            <span className="absolute inset-0 bg-black" style={{ height: '33.33%', top: 0 }} />
+                            <span className="absolute inset-0 bg-red-600" style={{ height: '33.33%', top: '33.33%' }} />
+                            <span className="absolute inset-0 bg-green-600" style={{ height: '33.33%', top: '66.66%' }} />
+                          </span>
+                        </div>
                         <span>M-Pesa</span>
                       </Label>
                     </RadioGroup>
