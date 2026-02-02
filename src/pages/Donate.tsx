@@ -10,8 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Heart, Leaf, Users, Globe, Loader2, Smartphone, CreditCard, Shirt, Package, MapPin, CheckCircle2, ArrowRight } from "lucide-react";
+import { Heart, Leaf, Users, Globe, Loader2, Smartphone, CreditCard, Shirt, Package, MapPin, CheckCircle2, ArrowRight, Apple } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import { KenyaFlagBadge } from "@/components/ui/KenyaFlagBadge";
 
 const DONATION_AMOUNTS = [10, 25, 50, 100];
 
@@ -48,7 +49,7 @@ const Donate = () => {
   const [donationType, setDonationType] = useState<"money" | "clothes">("money");
   const [amount, setAmount] = useState<number>(25);
   const [customAmount, setCustomAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "mpesa">("stripe");
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "mpesa" | "apple_pay">("stripe");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
@@ -89,8 +90,8 @@ const Donate = () => {
     const customerLocation = `${city ? city + ", " : ""}${country}`;
 
     setIsLoading(true);
-    try {
-      if (paymentMethod === "stripe") {
+     try {
+       if (paymentMethod === "stripe") {
         const { data, error } = await supabase.functions.invoke("create-checkout", {
           body: {
             items: [{
@@ -110,8 +111,8 @@ const Donate = () => {
         if (data?.url) {
           window.location.href = data.url;
         }
-      } else {
-        // M-Pesa flow via Paystack
+       } else if (paymentMethod === "mpesa") {
+         // M-Pesa flow via Paystack
         const { data, error } = await supabase.functions.invoke("paystack-payment", {
           body: {
             items: [{
@@ -133,6 +134,28 @@ const Donate = () => {
         if (data?.authorization_url) {
           window.location.href = data.authorization_url;
         }
+       } else {
+         // Apple Pay flow via Paystack (charged in KES)
+         const { data, error } = await supabase.functions.invoke("paystack-payment", {
+           body: {
+             items: [{
+               id: "donation",
+               name: `Donation - KES ${selectedAmount * 150}`, // Approximate conversion
+               price: selectedAmount * 150, // Convert to KES
+               quantity: 1,
+             }],
+             customerEmail: email,
+             customerName: name,
+             paymentMethod: "apple_pay",
+             currency: "KES",
+             callbackUrl: `${window.location.origin}/checkout/success`,
+           },
+         });
+
+         if (error) throw error;
+         if (data?.authorization_url) {
+           window.location.href = data.authorization_url;
+         }
       }
     } catch (error) {
       console.error("Donation error:", error);
@@ -494,8 +517,8 @@ const Donate = () => {
                     <Label>Payment Method</Label>
                     <RadioGroup
                       value={paymentMethod}
-                      onValueChange={(v) => setPaymentMethod(v as "stripe" | "mpesa")}
-                      className="grid grid-cols-2 gap-4"
+                      onValueChange={(v) => setPaymentMethod(v as "stripe" | "mpesa" | "apple_pay")}
+                      className="grid grid-cols-3 gap-4"
                     >
                       <Label
                         htmlFor="stripe"
@@ -516,14 +539,19 @@ const Donate = () => {
                         <RadioGroupItem value="mpesa" id="mpesa" />
                         <div className="relative">
                           <Smartphone className="h-5 w-5 text-green-600" />
-                          {/* Kenya Flag Badge */}
-                          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white shadow-sm overflow-hidden">
-                            <span className="absolute inset-0 bg-black" style={{ height: '33.33%', top: 0 }} />
-                            <span className="absolute inset-0 bg-red-600" style={{ height: '33.33%', top: '33.33%' }} />
-                            <span className="absolute inset-0 bg-green-600" style={{ height: '33.33%', top: '66.66%' }} />
-                          </span>
+                          <KenyaFlagBadge className="absolute -top-1 -right-1 h-3.5 w-3.5" />
                         </div>
                         <span>M-Pesa</span>
+                      </Label>
+                      <Label
+                        htmlFor="apple_pay"
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors ${
+                          paymentMethod === "apple_pay" ? "border-primary bg-primary/5" : "border-border"
+                        }`}
+                      >
+                        <RadioGroupItem value="apple_pay" id="apple_pay" />
+                        <Apple className="h-5 w-5" />
+                        <span>Apple Pay</span>
                       </Label>
                     </RadioGroup>
                   </div>

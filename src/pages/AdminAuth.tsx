@@ -71,21 +71,13 @@ const AdminAuth = () => {
 
     const { data: userData } = await supabase.auth.getUser();
     if (userData.user) {
-      const adminEmails = ['jackblessed191@gmail.com'];
-      if (userData.user.email && adminEmails.includes(userData.user.email.toLowerCase())) {
-        toast.success("Welcome, Admin!");
-        navigate("/admin");
-        setIsSubmitting(false);
-        return;
-      }
-      
       const { data: roleData } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", userData.user.id)
-        .eq("role", "admin")
+        .in("role", ["admin", "marketing", "shipping", "support", "content"])
         .maybeSingle();
-      
+
       if (roleData) {
         toast.success("Welcome, Admin!");
         navigate("/admin");
