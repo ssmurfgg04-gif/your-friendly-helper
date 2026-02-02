@@ -77,10 +77,12 @@ serve(async (req) => {
       );
     }
 
-    // Calculate total in smallest currency unit (kobo for NGN, cents for KES)
-    const shipping = 500; // 5 in major unit
+    // Calculate total in smallest currency unit
+    // NOTE: Donations shouldn't include shipping.
+    const isDonation = items.every((i) => i.id === "donation");
+    const shippingMajor = isDonation ? 0 : 5;
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity * 100, 0);
-    const total = subtotal + shipping * 100;
+    const total = subtotal + shippingMajor * 100;
 
     // Build Paystack channels based on payment method
     let channels: string[] = [];

@@ -17,6 +17,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Leaf, Loader2, ArrowLeft, ShoppingBag, Lock, CheckCircle2, MapPin, CreditCard, Smartphone, Apple } from "lucide-react";
+import { KenyaFlagBadge } from "@/components/ui/KenyaFlagBadge";
 
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
@@ -373,10 +374,30 @@ export function Checkout() {
           return;
         }
       } else if (selectedPaymentMethod === "apple_pay") {
-        // Apple Pay uses Stripe for better compatibility
-        toast.info("Apple Pay will use secure card checkout");
-        setSelectedPaymentMethod("stripe");
-        return;
+        // Apple Pay via Paystack (use KES if GBP isn't supported)
+        const { data, error } = await supabase.functions.invoke("paystack-payment", {
+          body: {
+            items: cartItems.map((item) => ({
+              id: item.id,
+              name: item.name,
+              price: item.price * 150, // Convert GBP to KES (approximate)
+              quantity: item.quantity,
+            })),
+            customerEmail,
+            customerName,
+            paymentMethod: "apple_pay",
+            currency: "KES",
+            callbackUrl: `${window.location.origin}/checkout/success`,
+          },
+        });
+
+        if (error) throw error;
+        if (data?.authorization_url) {
+          localStorage.removeItem("moenviron-cart");
+          window.dispatchEvent(new CustomEvent("cart-updated"));
+          window.location.href = data.authorization_url;
+          return;
+        }
       } else {
         // Handle Stripe payment
         const { data, error } = await supabase.functions.invoke("create-checkout", {
@@ -514,12 +535,7 @@ export function Checkout() {
                             <Label htmlFor="mpesa" className="flex items-center gap-2 cursor-pointer flex-1">
                               <div className="relative">
                                 <Smartphone className="h-5 w-5 text-green-600" />
-                                {/* Kenya Flag Badge */}
-                                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white shadow-sm overflow-hidden">
-                                  <span className="absolute inset-0 bg-black" style={{ height: '33.33%', top: 0 }} />
-                                  <span className="absolute inset-0 bg-red-600" style={{ height: '33.33%', top: '33.33%' }} />
-                                  <span className="absolute inset-0 bg-green-600" style={{ height: '33.33%', top: '66.66%' }} />
-                                </span>
+                                <KenyaFlagBadge className="absolute -top-1 -right-1 h-3.5 w-3.5" />
                               </div>
                               <div>
                                 <p className="font-medium">M-Pesa</p>
@@ -527,13 +543,13 @@ export function Checkout() {
                               </div>
                             </Label>
                           </div>
-                          <div className="flex items-center space-x-3 rounded-lg border border-border p-3 hover:bg-muted/50 cursor-pointer opacity-50">
-                            <RadioGroupItem value="apple_pay" id="apple_pay" disabled />
-                            <Label htmlFor="apple_pay" className="flex items-center gap-2 cursor-not-allowed flex-1">
+                          <div className="flex items-center space-x-3 rounded-lg border border-border p-3 hover:bg-muted/50 cursor-pointer">
+                            <RadioGroupItem value="apple_pay" id="apple_pay" />
+                            <Label htmlFor="apple_pay" className="flex items-center gap-2 cursor-pointer flex-1">
                               <Apple className="h-5 w-5" />
                               <div>
                                 <p className="font-medium">Apple Pay</p>
-                                <p className="text-xs text-muted-foreground">Available via Stripe Card Payment</p>
+                                <p className="text-xs text-muted-foreground">Pay with Apple Pay (charged in KES)</p>
                               </div>
                             </Label>
                           </div>

@@ -25,16 +25,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
 
+  const ensureProfileExists = useCallback(async (authUser: User) => {
+    // Create a minimal profile row on first login.
+    // This enables backend triggers/policies that depend on profiles.
+    const { data: existing, error: selectError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("user_id", authUser.id)
+      .maybeSingle();
+
+    if (selectError) return;
+    if (existing) return;
+
+    await supabase.from("profiles").insert({
+      user_id: authUser.id,
+      email: authUser.email ?? null,
+      full_name:
+        (authUser.user_metadata?.full_name as string | undefined) ??
+        (authUser.user_metadata?.name as string | undefined) ??
+        null,
+    });
+  }, []);
+
   const checkAdminRole = useCallback(async (userId: string) => {
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    const adminEmails = ['jackblessed191@gmail.com'];
-    
-    if (currentUser?.email && adminEmails.includes(currentUser.email.toLowerCase())) {
-      setIsAdmin(true);
-      setUserRole("admin");
-      return;
-    }
-    
     const { data, error } = await supabase
       .from("user_roles")
       .select("role")
@@ -65,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (session?.user) {
           setTimeout(() => {
+            ensureProfileExists(session.user);
             checkAdminRole(session.user.id);
           }, 0);
         } else {
@@ -78,13 +92,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        checkAdminRole(session.user.id);
+        setTimeout(() => {
+          ensureProfileExists(session.user);
+          checkAdminRole(session.user.id);
+        }, 0);
       }
       setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [checkAdminRole]);
+  }, [checkAdminRole, ensureProfileExists]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
