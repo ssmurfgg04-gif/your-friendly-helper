@@ -3,11 +3,12 @@ import { ArrowRight, Recycle, Globe, Leaf, ChevronLeft, ChevronRight } from "luc
 import { Button } from "@/components/ui/button";
 import { useCMSContent } from "@/hooks/useCMSContent";
 import { useState, useEffect, useCallback } from "react";
+import heroMountainImage from "@/assets/hero-mountain.png";
 
 const DEFAULT_SLIDES = [
   {
-    url: "https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/render/image/public/project-uploads/3445bd9a-773d-492a-807a-dd135c7412fc/e2dc7a8a-3d38-4c8e-9f02-cb4efb35f6a1-1768497592178.png?width=8000&height=8000&resize=contain",
-    alt: "Mountain landscape with forests"
+    url: heroMountainImage,
+    alt: "Mountain landscape with forests and river valley"
   },
   {
     url: "https://images.unsplash.com/photo-1558171813-4c088753af8f?w=1920&q=80",
