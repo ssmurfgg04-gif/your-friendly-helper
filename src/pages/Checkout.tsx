@@ -16,14 +16,19 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Leaf, Loader2, ArrowLeft, ShoppingBag, Lock, CheckCircle2, MapPin, CreditCard, Smartphone, Apple } from "lucide-react";
+import { Leaf, Loader2, ArrowLeft, ShoppingBag, Lock, CheckCircle2, MapPin, CreditCard, Smartphone } from "lucide-react";
 import { KenyaFlagBadge } from "@/components/ui/KenyaFlagBadge";
+
+// Import payment logos
+import stripeLogo from "@/assets/stripe-logo.webp";
+import mpesaLogo from "@/assets/mpesa-logo.webp";
+import googlePayLogo from "@/assets/google-pay-logo.webp";
+import applePayLogo from "@/assets/apple-pay-logo.webp";
 
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
-const PAYSTACK_PUBLIC_KEY = "pk_live_7efdcb627a67e2ab6a1b0bef6d1b96d3970832a2";
 
-type PaymentMethod = "stripe" | "mpesa" | "apple_pay";
+type PaymentMethod = "stripe" | "mpesa" | "apple_pay" | "google_pay";
 
 interface CartItem {
   id: string;
@@ -120,7 +125,7 @@ function CheckoutForm({
       }
 
       if (paymentIntent?.status === "succeeded") {
-        const { data, error: confirmError } = await supabase.functions.invoke("stripe-webhook", {
+        const { error: confirmError } = await supabase.functions.invoke("stripe-webhook", {
           body: {
             paymentIntentId: paymentIntent.id,
             shippingAddress: {
@@ -344,20 +349,23 @@ export function Checkout() {
     setIsLoading(true);
 
     try {
-      // Handle Paystack payments (M-Pesa)
-      if (selectedPaymentMethod === "mpesa") {
+      // Handle Paystack payments (M-Pesa, Apple Pay, Google Pay)
+      if (selectedPaymentMethod === "mpesa" || selectedPaymentMethod === "apple_pay" || selectedPaymentMethod === "google_pay") {
+        const paystackMethod = selectedPaymentMethod === "mpesa" ? "mobile_money" : 
+                               selectedPaymentMethod === "google_pay" ? "card" : "apple_pay";
+        
         const { data, error } = await supabase.functions.invoke("paystack-payment", {
           body: {
             items: cartItems.map((item) => ({
               id: item.id,
               name: item.name,
-              price: item.price * 150, // Convert GBP to KES (approximate)
+              price: Math.round(item.price * 150), // Convert GBP to KES
               quantity: item.quantity,
             })),
             customerEmail,
             customerName,
-            customerPhone,
-            paymentMethod: "mobile_money",
+            customerPhone: selectedPaymentMethod === "mpesa" ? customerPhone : undefined,
+            paymentMethod: paystackMethod,
             currency: "KES",
             callbackUrl: `${window.location.origin}/checkout/success`,
           },
@@ -366,37 +374,12 @@ export function Checkout() {
         if (error) throw error;
 
         if (data?.authorization_url) {
-          // Clear cart before redirect
-          localStorage.removeItem("moenviron-cart");
-          window.dispatchEvent(new CustomEvent("cart-updated"));
-          // Redirect to Paystack checkout
-          window.location.href = data.authorization_url;
-          return;
-        }
-      } else if (selectedPaymentMethod === "apple_pay") {
-        // Apple Pay via Paystack (use KES if GBP isn't supported)
-        const { data, error } = await supabase.functions.invoke("paystack-payment", {
-          body: {
-            items: cartItems.map((item) => ({
-              id: item.id,
-              name: item.name,
-              price: item.price * 150, // Convert GBP to KES (approximate)
-              quantity: item.quantity,
-            })),
-            customerEmail,
-            customerName,
-            paymentMethod: "apple_pay",
-            currency: "KES",
-            callbackUrl: `${window.location.origin}/checkout/success`,
-          },
-        });
-
-        if (error) throw error;
-        if (data?.authorization_url) {
           localStorage.removeItem("moenviron-cart");
           window.dispatchEvent(new CustomEvent("cart-updated"));
           window.location.href = data.authorization_url;
           return;
+        } else {
+          throw new Error("Failed to get payment URL");
         }
       } else {
         // Handle Stripe payment
@@ -420,6 +403,8 @@ export function Checkout() {
           setClientSecret(data.clientSecret);
           setPaymentIntentId(data.paymentIntentId);
           setShowPayment(true);
+        } else {
+          throw new Error("Failed to create payment intent");
         }
       }
     } catch (error) {
@@ -430,7 +415,6 @@ export function Checkout() {
     }
   };
 
-  // Allow checkout even without Stripe for Paystack payments
   const canCheckout = stripePromise || selectedPaymentMethod !== "stripe";
 
   return (
@@ -472,129 +456,160 @@ export function Checkout() {
                         We'll send your order confirmation here
                       </p>
                     </div>
-                      <div>
-                        <Label htmlFor="name" className="text-sm font-medium">
-                          Full Name
-                        </Label>
-                        <Input
-                          id="name"
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          placeholder="Your name"
-                        />
-                      </div>
+                    <div>
+                      <Label htmlFor="name" className="text-sm font-medium">
+                        Full Name
+                      </Label>
+                      <Input
+                        id="name"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="Your name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="location" className="text-sm font-medium flex items-center justify-between">
+                        <span>Delivery Location</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 px-2 text-[10px] text-primary hover:text-primary hover:bg-primary/5"
+                          onClick={detectLocation}
+                          disabled={isDetectingLocation}
+                        >
+                          {isDetectingLocation ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <MapPin className="mr-1 h-3 w-3" />
+                          )}
+                          Detect My Location
+                        </Button>
+                      </Label>
+                      <Input
+                        id="location"
+                        value={customerLocation}
+                        onChange={(e) => setCustomerLocation(e.target.value)}
+                        placeholder="City, Country"
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Capturing your location helps us calculate environmental impact
+                      </p>
+                    </div>
+
+                    {/* Payment Method Selection */}
+                    <div className="space-y-3 pt-4 border-t border-border">
+                      <Label className="text-sm font-medium">Payment Method</Label>
+                      <RadioGroup
+                        value={selectedPaymentMethod}
+                        onValueChange={(value) => setSelectedPaymentMethod(value as PaymentMethod)}
+                        className="grid gap-3"
+                      >
+                        {/* Stripe Card */}
+                        <div className={`flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors ${selectedPaymentMethod === "stripe" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
+                          <RadioGroupItem value="stripe" id="stripe" />
+                          <Label htmlFor="stripe" className="flex items-center gap-3 cursor-pointer flex-1">
+                            <img src={stripeLogo} alt="Stripe" className="h-6 w-auto object-contain" />
+                            <div>
+                              <p className="font-medium">Card Payment</p>
+                              <p className="text-xs text-muted-foreground">Pay with Visa, Mastercard, or American Express</p>
+                            </div>
+                          </Label>
+                        </div>
+
+                        {/* M-Pesa */}
+                        <div className={`flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors ${selectedPaymentMethod === "mpesa" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
+                          <RadioGroupItem value="mpesa" id="mpesa" />
+                          <Label htmlFor="mpesa" className="flex items-center gap-3 cursor-pointer flex-1">
+                            <div className="relative">
+                              <img src={mpesaLogo} alt="M-Pesa" className="h-8 w-auto object-contain" />
+                              <KenyaFlagBadge className="absolute -top-1 -right-1 h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="font-medium">M-Pesa</p>
+                              <p className="text-xs text-muted-foreground">Pay with M-Pesa mobile money (Kenya)</p>
+                            </div>
+                          </Label>
+                        </div>
+
+                        {/* Google Pay */}
+                        <div className={`flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors ${selectedPaymentMethod === "google_pay" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
+                          <RadioGroupItem value="google_pay" id="google_pay" />
+                          <Label htmlFor="google_pay" className="flex items-center gap-3 cursor-pointer flex-1">
+                            <img src={googlePayLogo} alt="Google Pay" className="h-6 w-auto object-contain" />
+                            <div>
+                              <p className="font-medium">Google Pay</p>
+                              <p className="text-xs text-muted-foreground">Fast checkout with Google Pay</p>
+                            </div>
+                          </Label>
+                        </div>
+
+                        {/* Apple Pay */}
+                        <div className={`flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors ${selectedPaymentMethod === "apple_pay" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
+                          <RadioGroupItem value="apple_pay" id="apple_pay" />
+                          <Label htmlFor="apple_pay" className="flex items-center gap-3 cursor-pointer flex-1">
+                            <img src={applePayLogo} alt="Apple Pay" className="h-6 w-auto object-contain" />
+                            <div>
+                              <p className="font-medium">Apple Pay</p>
+                              <p className="text-xs text-muted-foreground">Quick and secure Apple Pay</p>
+                            </div>
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+
+                    {/* Phone number for M-Pesa */}
+                    {selectedPaymentMethod === "mpesa" && (
                       <div className="space-y-2">
-                        <Label htmlFor="location" className="text-sm font-medium flex items-center justify-between">
-                          <span>Delivery Location</span>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 px-2 text-[10px] text-primary hover:text-primary hover:bg-primary/5"
-                            onClick={detectLocation}
-                            disabled={isDetectingLocation}
-                          >
-                            {isDetectingLocation ? (
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                            ) : (
-                              <MapPin className="mr-1 h-3 w-3" />
-                            )}
-                            Detect My Location
-                          </Button>
+                        <Label htmlFor="phone" className="text-sm font-medium">
+                          M-Pesa Phone Number *
                         </Label>
                         <Input
-                          id="location"
-                          value={customerLocation}
-                          onChange={(e) => setCustomerLocation(e.target.value)}
-                          placeholder="City, Country"
+                          id="phone"
+                          type="tel"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                          placeholder="+254 712 345 678"
                         />
-                        <p className="text-[10px] text-muted-foreground">
-                          Capturing your location helps us calculate environmental impact
+                        <p className="text-xs text-muted-foreground">
+                          Enter your M-Pesa registered phone number
                         </p>
                       </div>
+                    )}
 
-                      {/* Payment Method Selection */}
-                      <div className="space-y-3 pt-4 border-t border-border">
-                        <Label className="text-sm font-medium">Payment Method</Label>
-                        <RadioGroup
-                          value={selectedPaymentMethod}
-                          onValueChange={(value) => setSelectedPaymentMethod(value as PaymentMethod)}
-                          className="grid gap-3"
-                        >
-                          <div className="flex items-center space-x-3 rounded-lg border border-border p-3 hover:bg-muted/50 cursor-pointer">
-                            <RadioGroupItem value="stripe" id="stripe" />
-                            <Label htmlFor="stripe" className="flex items-center gap-2 cursor-pointer flex-1">
-                              <CreditCard className="h-5 w-5 text-primary" />
-                              <div>
-                                <p className="font-medium">Card Payment</p>
-                                <p className="text-xs text-muted-foreground">Pay with Visa, Mastercard, or American Express</p>
-                              </div>
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-3 rounded-lg border border-border p-3 hover:bg-muted/50 cursor-pointer">
-                            <RadioGroupItem value="mpesa" id="mpesa" />
-                            <Label htmlFor="mpesa" className="flex items-center gap-2 cursor-pointer flex-1">
-                              <div className="relative">
-                                <Smartphone className="h-5 w-5 text-green-600" />
-                                <KenyaFlagBadge className="absolute -top-1 -right-1 h-3.5 w-3.5" />
-                              </div>
-                              <div>
-                                <p className="font-medium">M-Pesa</p>
-                                <p className="text-xs text-muted-foreground">Pay with M-Pesa mobile money (Kenya)</p>
-                              </div>
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-3 rounded-lg border border-border p-3 hover:bg-muted/50 cursor-pointer">
-                            <RadioGroupItem value="apple_pay" id="apple_pay" />
-                            <Label htmlFor="apple_pay" className="flex items-center gap-2 cursor-pointer flex-1">
-                              <Apple className="h-5 w-5" />
-                              <div>
-                                <p className="font-medium">Apple Pay</p>
-                                <p className="text-xs text-muted-foreground">Pay with Apple Pay (charged in KES)</p>
-                              </div>
-                            </Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-
-                      {/* Phone number for M-Pesa */}
-                      {selectedPaymentMethod === "mpesa" && (
-                        <div className="space-y-2">
-                          <Label htmlFor="phone" className="text-sm font-medium">
-                            M-Pesa Phone Number *
-                          </Label>
-                          <Input
-                            id="phone"
-                            type="tel"
-                            value={customerPhone}
-                            onChange={(e) => setCustomerPhone(e.target.value)}
-                            placeholder="+254 712 345 678"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Enter your M-Pesa registered phone number
-                          </p>
-                        </div>
+                    <Button
+                      onClick={handleContinueToPayment}
+                      className="w-full gap-2"
+                      size="lg"
+                      disabled={isLoading || !canCheckout}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : selectedPaymentMethod === "mpesa" ? (
+                        <>
+                          <img src={mpesaLogo} alt="" className="h-5 w-auto" />
+                          Pay with M-Pesa
+                        </>
+                      ) : selectedPaymentMethod === "apple_pay" ? (
+                        <>
+                          <img src={applePayLogo} alt="" className="h-5 w-auto" />
+                          Pay with Apple Pay
+                        </>
+                      ) : selectedPaymentMethod === "google_pay" ? (
+                        <>
+                          <img src={googlePayLogo} alt="" className="h-5 w-auto" />
+                          Pay with Google Pay
+                        </>
+                      ) : (
+                        <>
+                          <img src={stripeLogo} alt="" className="h-4 w-auto" />
+                          Continue to Payment
+                        </>
                       )}
-
-                      <Button
-                        onClick={handleContinueToPayment}
-                        className="w-full"
-                        size="lg"
-                        disabled={isLoading || !canCheckout}
-                      >
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Loading...
-                          </>
-                        ) : selectedPaymentMethod === "mpesa" ? (
-                          "Pay with M-Pesa"
-                        ) : selectedPaymentMethod === "apple_pay" ? (
-                          "Pay with Apple Pay"
-                        ) : (
-                          "Continue to Payment"
-                        )}
-                      </Button>
-                    </div>
+                    </Button>
+                  </div>
                 ) : clientSecret ? (
                   <Elements
                     stripe={stripePromise}
