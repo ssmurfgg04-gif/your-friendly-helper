@@ -10,9 +10,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Heart, Leaf, Users, Globe, Loader2, Smartphone, CreditCard, Shirt, Package, MapPin, CheckCircle2, ArrowRight, Apple } from "lucide-react";
+import { Heart, Leaf, Users, Globe, Loader2, Smartphone, CreditCard, Shirt, Package, MapPin, CheckCircle2, ArrowRight } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { KenyaFlagBadge } from "@/components/ui/KenyaFlagBadge";
+
+// Import payment logos
+import stripeLogo from "@/assets/stripe-logo.webp";
+import mpesaLogo from "@/assets/mpesa-logo.webp";
+import googlePayLogo from "@/assets/google-pay-logo.webp";
+import applePayLogo from "@/assets/apple-pay-logo.webp";
 
 const DONATION_AMOUNTS = [10, 25, 50, 100];
 
@@ -45,11 +51,13 @@ const CLOTHES_CATEGORIES = [
   },
 ];
 
+type PaymentMethod = "stripe" | "mpesa" | "apple_pay" | "google_pay";
+
 const Donate = () => {
   const [donationType, setDonationType] = useState<"money" | "clothes">("money");
   const [amount, setAmount] = useState<number>(25);
   const [customAmount, setCustomAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "mpesa" | "apple_pay">("stripe");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("stripe");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
@@ -90,8 +98,8 @@ const Donate = () => {
     const customerLocation = `${city ? city + ", " : ""}${country}`;
 
     setIsLoading(true);
-     try {
-       if (paymentMethod === "stripe") {
+    try {
+      if (paymentMethod === "stripe") {
         const { data, error } = await supabase.functions.invoke("create-checkout", {
           body: {
             items: [{
@@ -110,21 +118,26 @@ const Donate = () => {
         if (error) throw error;
         if (data?.url) {
           window.location.href = data.url;
+        } else {
+          throw new Error("Failed to create payment session");
         }
-       } else if (paymentMethod === "mpesa") {
-         // M-Pesa flow via Paystack
+      } else {
+        // Paystack payment (M-Pesa, Apple Pay, Google Pay)
+        const paystackMethod = paymentMethod === "mpesa" ? "mobile_money" : 
+                               paymentMethod === "google_pay" ? "card" : "apple_pay";
+        
         const { data, error } = await supabase.functions.invoke("paystack-payment", {
           body: {
             items: [{
               id: "donation",
-              name: `Donation - KES ${selectedAmount * 150}`, // Approximate conversion
-              price: selectedAmount * 150, // Convert to KES
+              name: `Donation - KES ${Math.round(selectedAmount * 150)}`,
+              price: Math.round(selectedAmount * 150), // Convert to KES
               quantity: 1,
             }],
             customerEmail: email,
             customerName: name,
-            customerPhone: phone,
-            paymentMethod: "mobile_money",
+            customerPhone: paymentMethod === "mpesa" ? phone : undefined,
+            paymentMethod: paystackMethod,
             currency: "KES",
             callbackUrl: `${window.location.origin}/checkout/success`,
           },
@@ -133,29 +146,9 @@ const Donate = () => {
         if (error) throw error;
         if (data?.authorization_url) {
           window.location.href = data.authorization_url;
+        } else {
+          throw new Error("Failed to create payment session");
         }
-       } else {
-         // Apple Pay flow via Paystack (charged in KES)
-         const { data, error } = await supabase.functions.invoke("paystack-payment", {
-           body: {
-             items: [{
-               id: "donation",
-               name: `Donation - KES ${selectedAmount * 150}`, // Approximate conversion
-               price: selectedAmount * 150, // Convert to KES
-               quantity: 1,
-             }],
-             customerEmail: email,
-             customerName: name,
-             paymentMethod: "apple_pay",
-             currency: "KES",
-             callbackUrl: `${window.location.origin}/checkout/success`,
-           },
-         });
-
-         if (error) throw error;
-         if (data?.authorization_url) {
-           window.location.href = data.authorization_url;
-         }
       }
     } catch (error) {
       console.error("Donation error:", error);
@@ -517,106 +510,119 @@ const Donate = () => {
                     <Label>Payment Method</Label>
                     <RadioGroup
                       value={paymentMethod}
-                      onValueChange={(v) => setPaymentMethod(v as "stripe" | "mpesa" | "apple_pay")}
-                      className="grid grid-cols-3 gap-4"
+                      onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
+                      className="grid grid-cols-2 gap-3"
                     >
+                      {/* Stripe */}
                       <Label
-                        htmlFor="stripe"
-                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors ${
-                          paymentMethod === "stripe" ? "border-primary bg-primary/5" : "border-border"
+                        htmlFor="donate-stripe"
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                          paymentMethod === "stripe" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
                         }`}
                       >
-                        <RadioGroupItem value="stripe" id="stripe" />
-                        <CreditCard className="h-5 w-5" />
-                        <span>Card</span>
+                        <RadioGroupItem value="stripe" id="donate-stripe" />
+                        <img src={stripeLogo} alt="Stripe" className="h-5 w-auto" />
                       </Label>
+
+                      {/* M-Pesa */}
                       <Label
-                        htmlFor="mpesa"
-                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors ${
-                          paymentMethod === "mpesa" ? "border-primary bg-primary/5" : "border-border"
+                        htmlFor="donate-mpesa"
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                          paymentMethod === "mpesa" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
                         }`}
                       >
-                        <RadioGroupItem value="mpesa" id="mpesa" />
+                        <RadioGroupItem value="mpesa" id="donate-mpesa" />
                         <div className="relative">
-                          <Smartphone className="h-5 w-5 text-green-600" />
+                          <img src={mpesaLogo} alt="M-Pesa" className="h-6 w-auto" />
                           <KenyaFlagBadge className="absolute -top-1 -right-1 h-3.5 w-3.5" />
                         </div>
-                        <span>M-Pesa</span>
                       </Label>
+
+                      {/* Google Pay */}
                       <Label
-                        htmlFor="apple_pay"
-                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors ${
-                          paymentMethod === "apple_pay" ? "border-primary bg-primary/5" : "border-border"
+                        htmlFor="donate-google-pay"
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                          paymentMethod === "google_pay" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
                         }`}
                       >
-                        <RadioGroupItem value="apple_pay" id="apple_pay" />
-                        <Apple className="h-5 w-5" />
-                        <span>Apple Pay</span>
+                        <RadioGroupItem value="google_pay" id="donate-google-pay" />
+                        <img src={googlePayLogo} alt="Google Pay" className="h-5 w-auto" />
+                      </Label>
+
+                      {/* Apple Pay */}
+                      <Label
+                        htmlFor="donate-apple-pay"
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                          paymentMethod === "apple_pay" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                        }`}
+                      >
+                        <RadioGroupItem value="apple_pay" id="donate-apple-pay" />
+                        <img src={applePayLogo} alt="Apple Pay" className="h-5 w-auto" />
                       </Label>
                     </RadioGroup>
                   </div>
 
-{/* Contact Info */}
-                    <div className="space-y-4">
+                  {/* Contact Info */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="your@email.com"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Name (optional)</Label>
+                      <Input
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Your name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="country" className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        Country *
+                      </Label>
+                      <Select value={country} onValueChange={setCountry}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Where are you donating from?" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COUNTRIES.map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City (optional)</Label>
+                      <Input
+                        id="city"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="Your city"
+                      />
+                    </div>
+                    {paymentMethod === "mpesa" && (
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email *</Label>
+                        <Label htmlFor="phone">M-Pesa Phone Number *</Label>
                         <Input
-                          id="email"
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="your@email.com"
+                          id="phone"
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="254700000000"
                           required
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Name (optional)</Label>
-                        <Input
-                          id="name"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="Your name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="country" className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          Country *
-                        </Label>
-                        <Select value={country} onValueChange={setCountry}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Where are you donating from?" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {COUNTRIES.map((c) => (
-                              <SelectItem key={c} value={c}>{c}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="city">City (optional)</Label>
-                        <Input
-                          id="city"
-                          value={city}
-                          onChange={(e) => setCity(e.target.value)}
-                          placeholder="Your city"
-                        />
-                      </div>
-                      {paymentMethod === "mpesa" && (
-                        <div className="space-y-2">
-                          <Label htmlFor="phone">M-Pesa Phone Number *</Label>
-                          <Input
-                            id="phone"
-                            type="tel"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            placeholder="254700000000"
-                            required
-                          />
-                        </div>
-                      )}
-                    </div>
+                    )}
+                  </div>
 
                   <Button
                     onClick={handleDonate}

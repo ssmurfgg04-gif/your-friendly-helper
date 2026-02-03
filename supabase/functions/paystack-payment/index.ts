@@ -19,7 +19,7 @@ interface PaymentRequest {
   customerEmail: string;
   customerName?: string;
   customerPhone?: string;
-  paymentMethod: "card" | "mobile_money" | "apple_pay";
+  paymentMethod: "card" | "mobile_money" | "apple_pay" | "google_pay";
   currency?: string;
   callbackUrl?: string;
   shippingAddress?: {
@@ -92,6 +92,9 @@ serve(async (req) => {
         break;
       case "apple_pay":
         channels = ["apple_pay", "card"];
+        break;
+      case "google_pay":
+        channels = ["card"]; // Google Pay works through card channel
         break;
       case "card":
       default:
