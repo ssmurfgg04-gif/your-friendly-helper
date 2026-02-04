@@ -16,19 +16,18 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Leaf, Loader2, ArrowLeft, ShoppingBag, Lock, CheckCircle2, MapPin, CreditCard, Smartphone } from "lucide-react";
-import { KenyaFlagBadge } from "@/components/ui/KenyaFlagBadge";
+import { Leaf, Loader2, ArrowLeft, ShoppingBag, Lock, CheckCircle2, MapPin, CreditCard } from "lucide-react";
 
 // Import payment logos
 import stripeLogo from "@/assets/stripe-logo.webp";
-import mpesaLogo from "@/assets/mpesa-logo.webp";
 import googlePayLogo from "@/assets/google-pay-logo.webp";
 import applePayLogo from "@/assets/apple-pay-logo.webp";
+import paypalLogo from "@/assets/paypal-logo.webp";
 
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
-type PaymentMethod = "stripe" | "mpesa" | "apple_pay" | "google_pay";
+type PaymentMethod = "stripe" | "apple_pay" | "google_pay" | "paypal";
 
 interface CartItem {
   id: string;
@@ -341,71 +340,33 @@ export function Checkout() {
       setEmailError("Please enter a valid email");
       return;
     }
-    if (selectedPaymentMethod === "mpesa" && !customerPhone) {
-      toast.error("Phone number is required for M-Pesa");
-      return;
-    }
     setEmailError("");
     setIsLoading(true);
 
     try {
-      // Handle Paystack payments (M-Pesa, Apple Pay, Google Pay)
-      if (selectedPaymentMethod === "mpesa" || selectedPaymentMethod === "apple_pay" || selectedPaymentMethod === "google_pay") {
-        const paystackMethod = selectedPaymentMethod === "mpesa" ? "mobile_money" : 
-                               selectedPaymentMethod === "google_pay" ? "card" : "apple_pay";
-        
-        const { data, error } = await supabase.functions.invoke("paystack-payment", {
-          body: {
-            items: cartItems.map((item) => ({
-              id: item.id,
-              name: item.name,
-              price: Math.round(item.price * 150), // Convert GBP to KES
-              quantity: item.quantity,
-            })),
-            customerEmail,
-            customerName,
-            customerPhone: selectedPaymentMethod === "mpesa" ? customerPhone : undefined,
-            paymentMethod: paystackMethod,
-            currency: "KES",
-            callbackUrl: `${window.location.origin}/checkout/success`,
-          },
-        });
+      // All payments go through Stripe
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          items: cartItems.map((item) => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+          })),
+          customerEmail,
+          customerName,
+          mode: "payment_intent",
+        },
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        if (data?.authorization_url) {
-          localStorage.removeItem("moenviron-cart");
-          window.dispatchEvent(new CustomEvent("cart-updated"));
-          window.location.href = data.authorization_url;
-          return;
-        } else {
-          throw new Error("Failed to get payment URL");
-        }
+      if (data?.clientSecret) {
+        setClientSecret(data.clientSecret);
+        setPaymentIntentId(data.paymentIntentId);
+        setShowPayment(true);
       } else {
-        // Handle Stripe payment
-        const { data, error } = await supabase.functions.invoke("create-checkout", {
-          body: {
-            items: cartItems.map((item) => ({
-              id: item.id,
-              name: item.name,
-              price: item.price,
-              quantity: item.quantity,
-            })),
-            customerEmail,
-            customerName,
-            mode: "payment_intent",
-          },
-        });
-
-        if (error) throw error;
-
-        if (data?.clientSecret) {
-          setClientSecret(data.clientSecret);
-          setPaymentIntentId(data.paymentIntentId);
-          setShowPayment(true);
-        } else {
-          throw new Error("Failed to create payment intent");
-        }
+        throw new Error("Failed to create payment intent");
       }
     } catch (error) {
       console.error("Error creating payment:", error);
@@ -415,7 +376,7 @@ export function Checkout() {
     }
   };
 
-  const canCheckout = stripePromise || selectedPaymentMethod !== "stripe";
+  const canCheckout = !!stripePromise;
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-background to-muted/20">
@@ -516,21 +477,6 @@ export function Checkout() {
                           </Label>
                         </div>
 
-                        {/* M-Pesa */}
-                        <div className={`flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors ${selectedPaymentMethod === "mpesa" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
-                          <RadioGroupItem value="mpesa" id="mpesa" />
-                          <Label htmlFor="mpesa" className="flex items-center gap-3 cursor-pointer flex-1">
-                            <div className="relative">
-                              <img src={mpesaLogo} alt="M-Pesa" className="h-8 w-auto object-contain" />
-                              <KenyaFlagBadge className="absolute -top-1 -right-1 h-4 w-4" />
-                            </div>
-                            <div>
-                              <p className="font-medium">M-Pesa</p>
-                              <p className="text-xs text-muted-foreground">Pay with M-Pesa mobile money (Kenya)</p>
-                            </div>
-                          </Label>
-                        </div>
-
                         {/* Google Pay */}
                         <div className={`flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors ${selectedPaymentMethod === "google_pay" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
                           <RadioGroupItem value="google_pay" id="google_pay" />
@@ -554,27 +500,20 @@ export function Checkout() {
                             </div>
                           </Label>
                         </div>
+
+                        {/* PayPal */}
+                        <div className={`flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors ${selectedPaymentMethod === "paypal" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
+                          <RadioGroupItem value="paypal" id="paypal" />
+                          <Label htmlFor="paypal" className="flex items-center gap-3 cursor-pointer flex-1">
+                            <img src={paypalLogo} alt="PayPal" className="h-6 w-auto object-contain" />
+                            <div>
+                              <p className="font-medium">PayPal</p>
+                              <p className="text-xs text-muted-foreground">Pay securely with PayPal</p>
+                            </div>
+                          </Label>
+                        </div>
                       </RadioGroup>
                     </div>
-
-                    {/* Phone number for M-Pesa */}
-                    {selectedPaymentMethod === "mpesa" && (
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-sm font-medium">
-                          M-Pesa Phone Number *
-                        </Label>
-                        <Input
-                          id="phone"
-                          type="tel"
-                          value={customerPhone}
-                          onChange={(e) => setCustomerPhone(e.target.value)}
-                          placeholder="+254 712 345 678"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Enter your M-Pesa registered phone number
-                        </p>
-                      </div>
-                    )}
 
                     <Button
                       onClick={handleContinueToPayment}
@@ -587,11 +526,6 @@ export function Checkout() {
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Processing...
                         </>
-                      ) : selectedPaymentMethod === "mpesa" ? (
-                        <>
-                          <img src={mpesaLogo} alt="" className="h-5 w-auto" />
-                          Pay with M-Pesa
-                        </>
                       ) : selectedPaymentMethod === "apple_pay" ? (
                         <>
                           <img src={applePayLogo} alt="" className="h-5 w-auto" />
@@ -601,6 +535,11 @@ export function Checkout() {
                         <>
                           <img src={googlePayLogo} alt="" className="h-5 w-auto" />
                           Pay with Google Pay
+                        </>
+                      ) : selectedPaymentMethod === "paypal" ? (
+                        <>
+                          <img src={paypalLogo} alt="" className="h-5 w-auto" />
+                          Pay with PayPal
                         </>
                       ) : (
                         <>

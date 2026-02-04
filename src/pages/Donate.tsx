@@ -10,15 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Heart, Leaf, Users, Globe, Loader2, Smartphone, CreditCard, Shirt, Package, MapPin, CheckCircle2, ArrowRight } from "lucide-react";
+import { Heart, Leaf, Users, Globe, Loader2, CreditCard, Shirt, Package, MapPin, CheckCircle2, ArrowRight } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import { KenyaFlagBadge } from "@/components/ui/KenyaFlagBadge";
 
 // Import payment logos
 import stripeLogo from "@/assets/stripe-logo.webp";
-import mpesaLogo from "@/assets/mpesa-logo.webp";
 import googlePayLogo from "@/assets/google-pay-logo.webp";
 import applePayLogo from "@/assets/apple-pay-logo.webp";
+import paypalLogo from "@/assets/paypal-logo.webp";
 
 const DONATION_AMOUNTS = [10, 25, 50, 100];
 
@@ -51,7 +50,7 @@ const CLOTHES_CATEGORIES = [
   },
 ];
 
-type PaymentMethod = "stripe" | "mpesa" | "apple_pay" | "google_pay";
+type PaymentMethod = "stripe" | "apple_pay" | "google_pay" | "paypal";
 
 const Donate = () => {
   const [donationType, setDonationType] = useState<"money" | "clothes">("money");
@@ -90,65 +89,32 @@ const Donate = () => {
       toast.error("Please enter a valid donation amount");
       return;
     }
-    if (paymentMethod === "mpesa" && !phone) {
-      toast.error("Please enter your M-Pesa phone number");
-      return;
-    }
 
     const customerLocation = `${city ? city + ", " : ""}${country}`;
 
     setIsLoading(true);
     try {
-      if (paymentMethod === "stripe") {
-        const { data, error } = await supabase.functions.invoke("create-checkout", {
-          body: {
-            items: [{
-              id: "donation",
-              name: `Donation - £${selectedAmount}`,
-              price: selectedAmount,
-              quantity: 1,
-            }],
-            customerEmail: email,
-            customerName: name,
-            customerLocation,
-            mode: "payment",
-          },
-        });
+      // All payments go through Stripe
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          items: [{
+            id: "donation",
+            name: `Donation - £${selectedAmount}`,
+            price: selectedAmount,
+            quantity: 1,
+          }],
+          customerEmail: email,
+          customerName: name,
+          customerLocation,
+          mode: "payment",
+        },
+      });
 
-        if (error) throw error;
-        if (data?.url) {
-          window.location.href = data.url;
-        } else {
-          throw new Error("Failed to create payment session");
-        }
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
       } else {
-        // Paystack payment (M-Pesa, Apple Pay, Google Pay)
-        const paystackMethod = paymentMethod === "mpesa" ? "mobile_money" : 
-                               paymentMethod === "google_pay" ? "card" : "apple_pay";
-        
-        const { data, error } = await supabase.functions.invoke("paystack-payment", {
-          body: {
-            items: [{
-              id: "donation",
-              name: `Donation - KES ${Math.round(selectedAmount * 150)}`,
-              price: Math.round(selectedAmount * 150), // Convert to KES
-              quantity: 1,
-            }],
-            customerEmail: email,
-            customerName: name,
-            customerPhone: paymentMethod === "mpesa" ? phone : undefined,
-            paymentMethod: paystackMethod,
-            currency: "KES",
-            callbackUrl: `${window.location.origin}/checkout/success`,
-          },
-        });
-
-        if (error) throw error;
-        if (data?.authorization_url) {
-          window.location.href = data.authorization_url;
-        } else {
-          throw new Error("Failed to create payment session");
-        }
+        throw new Error("Failed to create payment session");
       }
     } catch (error) {
       console.error("Donation error:", error);
@@ -524,20 +490,6 @@ const Donate = () => {
                         <img src={stripeLogo} alt="Stripe" className="h-5 w-auto" />
                       </Label>
 
-                      {/* M-Pesa */}
-                      <Label
-                        htmlFor="donate-mpesa"
-                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
-                          paymentMethod === "mpesa" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
-                        }`}
-                      >
-                        <RadioGroupItem value="mpesa" id="donate-mpesa" />
-                        <div className="relative">
-                          <img src={mpesaLogo} alt="M-Pesa" className="h-6 w-auto" />
-                          <KenyaFlagBadge className="absolute -top-1 -right-1 h-3.5 w-3.5" />
-                        </div>
-                      </Label>
-
                       {/* Google Pay */}
                       <Label
                         htmlFor="donate-google-pay"
@@ -558,6 +510,17 @@ const Donate = () => {
                       >
                         <RadioGroupItem value="apple_pay" id="donate-apple-pay" />
                         <img src={applePayLogo} alt="Apple Pay" className="h-5 w-auto" />
+                      </Label>
+
+                      {/* PayPal */}
+                      <Label
+                        htmlFor="donate-paypal"
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                          paymentMethod === "paypal" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                        }`}
+                      >
+                        <RadioGroupItem value="paypal" id="donate-paypal" />
+                        <img src={paypalLogo} alt="PayPal" className="h-5 w-auto" />
                       </Label>
                     </RadioGroup>
                   </div>
@@ -609,19 +572,6 @@ const Donate = () => {
                         placeholder="Your city"
                       />
                     </div>
-                    {paymentMethod === "mpesa" && (
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">M-Pesa Phone Number *</Label>
-                        <Input
-                          id="phone"
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="254700000000"
-                          required
-                        />
-                      </div>
-                    )}
                   </div>
 
                   <Button
