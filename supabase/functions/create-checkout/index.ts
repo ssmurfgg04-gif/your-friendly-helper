@@ -106,7 +106,8 @@ Deno.serve(async (req) => {
           items: JSON.stringify(items.map(i => ({ id: i.id, name: i.name, qty: i.quantity }))),
           customerLocation: customerLocation || "",
         },
-        automatic_payment_methods: { enabled: true },
+        // Enable card, Apple Pay, Google Pay, and PayPal
+        payment_method_types: ["card", "paypal", "link"],
       });
 
       console.log("Payment intent created:", paymentIntent.id);
@@ -145,7 +146,7 @@ Deno.serve(async (req) => {
     });
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
+      payment_method_types: ["card", "paypal", "link"],
       line_items: lineItems,
       mode: "payment",
       success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
