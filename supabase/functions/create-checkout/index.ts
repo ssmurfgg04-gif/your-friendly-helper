@@ -20,6 +20,7 @@ interface CheckoutRequest {
   customerName?: string;
   customerLocation?: string;
   mode?: "payment" | "payment_intent" | "checkout_session";
+  isDonation?: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -53,9 +54,9 @@ Deno.serve(async (req) => {
     });
 
     const body: CheckoutRequest = await req.json();
-    const { items, customerEmail, customerName, customerLocation, mode = "payment_intent" } = body;
+    const { items, customerEmail, customerName, customerLocation, mode = "payment_intent", isDonation = false } = body;
 
-    console.log("Creating checkout:", { itemsCount: items?.length, customerEmail, mode });
+    console.log("Creating checkout:", { itemsCount: items?.length, customerEmail, mode, isDonation });
 
     if (!items || items.length === 0) {
       return new Response(
@@ -73,7 +74,7 @@ Deno.serve(async (req) => {
 
     // Calculate total
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const shipping = 5; // Fixed shipping
+    const shipping = isDonation ? 0 : 5; // No shipping for donations
     const totalAmount = Math.round((subtotal + shipping) * 100); // Convert to pence
 
     // For payment_intent mode (embedded checkout)
@@ -135,17 +136,19 @@ Deno.serve(async (req) => {
       quantity: item.quantity,
     }));
 
-    // Add shipping as a line item
-    lineItems.push({
-      price_data: {
-        currency: "gbp",
-        product_data: { name: "Shipping" },
-        unit_amount: 500,
-      },
-      quantity: 1,
-    });
+    // Add shipping as a line item only for non-donations
+    if (!isDonation) {
+      lineItems.push({
+        price_data: {
+          currency: "gbp",
+          product_data: { name: "Shipping" },
+          unit_amount: 500,
+        },
+        quantity: 1,
+      });
+    }
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ["card", "paypal", "link"],
       line_items: lineItems,
       mode: "payment",
@@ -156,11 +159,18 @@ Deno.serve(async (req) => {
         items: JSON.stringify(items.map(i => ({ id: i.id, name: i.name, qty: i.quantity }))),
         customerName: customerName || "",
         customerLocation: customerLocation || "",
+        isDonation: isDonation ? "true" : "false",
       },
-      shipping_address_collection: {
+    };
+
+    // Only collect shipping address for non-donations
+    if (!isDonation) {
+      sessionConfig.shipping_address_collection = {
         allowed_countries: ["GB", "KE", "US", "UG", "TZ", "RW", "NG", "ZA", "GH", "ET"],
-      },
-    });
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     console.log("Checkout session created:", session.id);
 
