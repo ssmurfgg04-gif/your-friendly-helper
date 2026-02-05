@@ -94,7 +94,7 @@ export function ResendIntegration() {
     
     setIsTesting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("sync-to-resend", {
+       const { data, error } = await supabase.functions.invoke("test-resend", {
         body: { action: "test" },
       });
       
@@ -120,7 +120,7 @@ export function ResendIntegration() {
     
     setIsSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("sync-to-resend", {
+       const { data, error } = await supabase.functions.invoke("test-resend", {
         body: { action: "sync" },
       });
       
@@ -191,25 +191,19 @@ export function ResendIntegration() {
     
     setIsSendingTest(true);
     try {
-      const response = await fetch("/.netlify/functions/send-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          action: "test",
-          to: testEmail
-        }),
+       const { data, error } = await supabase.functions.invoke("test-resend", {
+         body: { action: "send", to: testEmail },
       });
       
-      const data = await response.json();
-      
+       if (error) throw error;
+ 
       if (data.success) {
         toast.success(`Test email sent to ${testEmail}!`);
         setTestEmail("");
       } else {
         toast.error(data.error || "Failed to send test email");
       }
-    } catch (err) {
-      console.error("Test email error:", err);
+     } catch {
       toast.error("Failed to send test email");
     } finally {
       setIsSendingTest(false);

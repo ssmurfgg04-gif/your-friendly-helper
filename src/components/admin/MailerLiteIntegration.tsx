@@ -113,14 +113,11 @@ export function MailerLiteIntegration() {
     
     setIsTesting(true);
     try {
-const response = await fetch("/.netlify/functions/sync-to-mailerlite", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "test" }),
-        });
+       const { data, error } = await supabase.functions.invoke("sync-to-mailerlite", {
+         body: { action: "test" },
+       });
       
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Connection failed");
+       if (error) throw error;
       
       if (data?.success) {
         if (data.group_id && data.group_name) {
@@ -156,14 +153,11 @@ const response = await fetch("/.netlify/functions/sync-to-mailerlite", {
     
     setIsSyncing(true);
     try {
-const response = await fetch("/.netlify/functions/sync-to-mailerlite", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "sync" }),
-        });
+       const { data, error } = await supabase.functions.invoke("sync-to-mailerlite", {
+         body: { action: "sync" },
+       });
       
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Sync failed");
+       if (error) throw error;
       
       if (data?.success) {
         const { error: updateError } = await supabase
