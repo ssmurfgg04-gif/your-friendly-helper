@@ -107,6 +107,7 @@ const Donate = () => {
           customerName: name,
           customerLocation,
           mode: "payment",
+          isDonation: true,
         },
       });
 
