@@ -69,13 +69,16 @@ interface NavContent {
   };
 
   const navContent = (navCms?.content || {}) as NavContent;
-  const navLinks: NavLink[] = navContent.links || [
+  const baseLinks: NavLink[] = navContent.links || [
     { href: "/shop", label: "Shop" },
     { href: "/about", label: "About Us" },
     { href: "/impact", label: "Our Impact" },
     { href: "/partners", label: "For Brands" },
     { href: "/contact", label: "Contact" },
   ];
+  const navLinks: NavLink[] = baseLinks.some((link) => link.href === "/events")
+    ? baseLinks
+    : [...baseLinks, { href: "/events", label: "Events" }];
 
   const handleLinkClick = (href: string) => {
     navigate(href);

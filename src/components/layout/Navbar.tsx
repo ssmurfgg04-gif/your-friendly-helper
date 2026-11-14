@@ -25,7 +25,7 @@ export function Navbar() {
     logoUrl: "https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/render/image/public/project-uploads/2274ce5a-a92d-4b73-b73e-99562f585de3/moenviron-logo-resized-1768037588209.webp?width=8000&height=8000&resize=contain"
   };
 
-  const navLinks = (navCms?.content as { links: NavLink[] })?.links || [
+  const baseLinks: NavLink[] = (navCms?.content as { links: NavLink[] })?.links || [
     { href: "/", label: "Home" },
     { href: "/about", label: "About Us" },
     { href: "/projects", label: "Initiatives" },
@@ -34,6 +34,16 @@ export function Navbar() {
     { href: "/partners", label: "For Brands" },
     { href: "/shop", label: "Shop" },
   ];
+
+  // Navigation can come from the CMS, so make sure Events is always present.
+  const navLinks: NavLink[] = baseLinks.some((link) => link.href === "/events")
+    ? baseLinks
+    : (() => {
+        const eventsLink = { href: "/events", label: "Events" };
+        const after = baseLinks.findIndex((link) => link.href === "/projects");
+        const at = after === -1 ? baseLinks.length : after + 1;
+        return [...baseLinks.slice(0, at), eventsLink, ...baseLinks.slice(at)];
+      })();
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-secondary/95 backdrop-blur supports-[backdrop-filter]:bg-secondary/80">
